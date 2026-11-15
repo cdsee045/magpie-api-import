@@ -4,12 +4,12 @@
   <header><div><span class="eyebrow">Magpie 插件 · 本机导入</span><h1>添加你的 API</h1><p class="muted">粘贴文字、JSON 或截图，验证后交给 Magpie 保存。</p></div><span class="local-badge">本地识别</span></header>
   <section class="input-card" aria-label="导入内容">
     <label for="input-text">API 信息</label>
-    <textarea id="input-text" rows="6" placeholder="粘贴 API 文字、JSON 或截图。支持一个 URL 下多条 Key；Key(base64): 的编码可在同行或下一行。" spellcheck="false" autocomplete="off"></textarea>
+    <textarea id="input-text" rows="6" placeholder="粘贴 API 文字、JSON 或截图。支持一个 URL 多条 Key，也支持 URL 后直接跟 Base64 Key；未标注时需核对。" spellcheck="false" autocomplete="off"></textarea>
     <div class="input-actions"><label class="file-button">选择截图<input id="image-file" type="file" accept="image/png,image/jpeg,image/webp"></label><button id="clear-image" type="button" hidden>移除图片</button><button id="parse-input" class="primary" type="button">识别并验证</button></div>
     <p id="input-notice" class="muted" role="status">仅处理你主动粘贴或选择的内容，不会自动读取系统剪贴板。</p>
   </section>
   <section class="toolbar" hidden><label><input id="auto" type="checkbox">自动识别</label><button id="detect" type="button">重新检测</button></section>
-  <p class="cost-note">验证会向所填 API 地址发起一次最小真实调用，可能产生少量费用。截图在本机识别；截图 Key 必须人工核对。</p>
+  <p class="cost-note">验证会向所填 API 地址发起一次最小真实调用，可能产生少量费用。截图在本机识别；截图及未标注 Base64 的 Key 必须人工核对。</p>
   <section id="notice" role="status" aria-live="polite" hidden></section>
   <section id="choices" aria-label="候选配置" hidden></section>
   <form id="editor" hidden autocomplete="off">
@@ -19,7 +19,7 @@
     <label>API Key<span class="key-field"><input id="key" type="password" placeholder="保留识别到的 Key，填写可替换" spellcheck="false" autocomplete="new-password"><button id="reveal" type="button" aria-label="显示已识别的 Key">显示</button></span><small id="masked-key" class="muted"></small></label>
     <label>协议<select id="protocol"><option value="chat-completions">Chat Completions（OpenAI 兼容）</option><option value="responses">Responses（暂不支持）</option><option value="anthropic">Anthropic Messages（暂不支持）</option><option value="unknown">未识别，请核对</option></select></label>
     <label>验证模型<span class="model-field"><input id="model" list="models" maxlength="200" placeholder="填写模型 ID，或从下方列表选择" required spellcheck="false"><button id="load-models" type="button">获取模型</button></span><select id="model-picker" aria-label="已获取的模型" hidden></select><datalist id="models"></datalist></label>
-    <label id="review-wrap" class="review" hidden><input id="review" type="checkbox">我已逐字核对截图识别的完整 Key</label>
+    <label id="review-wrap" class="review" hidden><input id="review" type="checkbox">我已逐字核对识别的完整 Key 和对应 API 地址</label>
     <div class="actions"><button id="validate" class="primary" type="submit">验证 API</button><span class="muted">仅验证当前模型</span></div>
   </form>
   <dialog id="confirmation" aria-labelledby="confirm-title"><div class="success-icon" aria-hidden="true">✓</div><h2 id="confirm-title">发现可用的 API</h2><p class="muted">确认后提交给 Magpie，作为“API 导入”的一个账号保存。</p><dl id="summary"></dl><p class="cost-note">只提供本次验证通过的模型。不同服务商的同名模型分别显示。</p><div class="dialog-actions"><button id="cancel" type="button">暂不添加</button><button id="confirm" class="primary" type="button">确认添加</button></div></dialog>

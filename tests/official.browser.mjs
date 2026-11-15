@@ -106,6 +106,26 @@ try {
     await context.close();
   }
   {
+    const { flow, page, context } = await fresh(); const before = calls, pathCount = paths.length;
+    const key = 'sk-fixture_unlabelled_123456789', encoded = Buffer.from(key).toString('base64');
+    await paste(page, `url:${fixture.url}/ ${encoded}`);
+    await expect(page.locator('#review-wrap')).toBeVisible();
+    await expect(page.locator('#url')).toHaveValue(fixture.url);
+    await page.locator('#load-models').click(); await expect(page.locator('#notice')).toContainText('需要核对');
+    assert.equal(calls, before); assert.equal(paths.length, pathCount); checks++;
+    await page.locator('#reveal').click(); await expect(page.locator('#key')).toHaveValue(key);
+    await page.locator('#review').check(); await page.locator('#load-models').click();
+    await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    assert.deepEqual(paths.slice(pathCount), ['/v1/models']);
+    assert.deepEqual(authorizations.slice(pathCount), ['Bearer ' + key]); checks++;
+    await page.locator('#model-picker').selectOption(fixture.model); await page.locator('#validate').click();
+    await page.locator('#confirmation').waitFor({ state: 'visible' });
+    await page.locator('#confirm').click(); const result = await flow.result;
+    assert.equal(result.type, 'success'); assert.equal(result.key, key);
+    assert.equal(calls, before + 1); assert.deepEqual(paths.slice(pathCount), ['/v1/models', '/v1/chat/completions']); checks += 2;
+    await context.close();
+  }
+  {
     const { flow, page, context } = await fresh(); delay = 400;
     await paste(page, fixture); await expect(page.locator('#notice')).toContainText('正在进行最小真实调用');
     await page.close(); const result = await flow.result; assert.equal(result.type, 'failed'); checks++; delay = 0;

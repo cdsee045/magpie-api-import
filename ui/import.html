@@ -13,7 +13,7 @@
     <label>API Key<span class="key-field"><input id="key" type="password" placeholder="保留识别到的 Key，填写可替换" spellcheck="false" autocomplete="new-password"><button id="reveal" type="button" aria-label="显示已识别的 Key">显示</button></span><small id="masked-key" class="muted"></small></label>
     <label>协议<select id="protocol"><option value="chat-completions">Chat Completions（OpenAI 兼容）</option><option value="responses">Responses（首版暂不支持）</option><option value="anthropic">Anthropic Messages（首版暂不支持）</option><option value="unknown">未识别，请核对</option></select></label>
     <label>验证模型<span class="model-field"><input id="model" list="models" maxlength="200" placeholder="填写接口支持的模型 ID" required spellcheck="false"><button id="load-models" type="button">获取模型</button></span><datalist id="models"></datalist></label>
-    <label id="review-wrap" class="review" hidden><input id="review" type="checkbox">我已逐字核对截图识别的完整 Key</label>
+    <label id="review-wrap" class="review" hidden><input id="review" type="checkbox">我已逐字核对识别的完整 Key 和对应 API 地址</label>
     <div class="actions"><button id="validate" class="primary" type="submit">验证 API</button><span class="muted">仅验证当前模型</span></div>
   </form>
   <dialog id="confirmation" aria-labelledby="confirm-title"><div class="success-icon" aria-hidden="true">✓</div><h2 id="confirm-title">发现可用的 API</h2><p class="muted">最小真实调用已通过。添加后保留你原有的默认选择。</p><dl id="summary"></dl><p class="cost-note">仅当前模型通过验证，其他模型保持未验证。</p><div class="dialog-actions"><button id="cancel" type="button">暂不添加</button><button id="confirm" class="primary" type="button">确认添加</button></div></dialog>

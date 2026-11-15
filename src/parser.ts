@@ -23,6 +23,18 @@ function decode(value: string): string {
   if (keyIssue(result)) throw new ImportError("BASE64", "Base64 解码后 Key 无效，请手动补全。");
   return result;
 }
+function bareKey(value: string, allowEncoded: boolean): { field: "key" | "keybase64"; value: string; review: boolean } | null {
+  value = unquote(value);
+  if (/^sk-[A-Za-z0-9_-]+$/.test(value)) return { field: "key", value, review: false };
+  if (!allowEncoded || !value.startsWith("c2st") || value.length > 11_000) return null;
+  try {
+    const key = decode(value);
+    // Unlabelled data is only a candidate when it decodes to a recognizable
+    // sk-key. Require review before sending this inferred credential anywhere.
+    if (/^sk-[A-Za-z0-9_-]{8,}$/.test(key)) return { field: "keybase64", value, review: true };
+  } catch { /* Unlabelled arbitrary/malformed Base64 is never a guessed Key. */ }
+  return null;
+}
 function candidate(record: Record<string, unknown>, inherited: Record<string, unknown> = {}): { value: Candidate; issues: string[] } {
   const map = Object.fromEntries(Object.entries({ ...inherited, ...record }).map(([k, v]) => [normalized(k), v]));
   const get = (fields: string[]) => fields.map(k => map[k]).find(v => v !== undefined);
@@ -53,7 +65,7 @@ export function parseText(text: string, image = false): Recognition {
   if (text.length > 1_048_576) throw new ImportError("SIZE", "剪贴板文本超过 1 MB，请缩小内容后重试。");
   text = text.replace(/^\uFEFF/, "").trim();
   if (!text) return { candidates: [], issues: [] };
-  const records: Array<{ record: Record<string, unknown>; inherited?: Record<string, unknown> }> = [];
+  const records: Array<{ record: Record<string, unknown>; inherited?: Record<string, unknown>; review?: boolean }> = [];
   const issues: string[] = [];
   if (/^[\[{]/.test(text)) {
     let parsed: unknown;
@@ -84,11 +96,32 @@ export function parseText(text: string, image = false): Recognition {
     let pendingName = "";
     let pendingKey = "";
     let sharedUrl = "";
+    let review = false;
     let seenKey = false;
     function flush(): void {
       if (Object.keys(current).length) {
-        records.push({ record: current, inherited: { ...global, ...(sharedUrl ? { url: sharedUrl } : {}) } });
-        current = {};
+        records.push({ record: current, inherited: { ...global, ...(sharedUrl ? { url: sharedUrl } : {}) }, review });
+        current = {}; review = false;
+      }
+    }
+    function appendKey(label: string, value: string, inferred = false): void {
+      if (seenKey) flush();
+      current[label] = value;
+      pendingKey = value ? "" : label;
+      if (pendingName && current.name === undefined) current.name = pendingName;
+      pendingName = ""; seenKey = true; review = inferred;
+    }
+    function urlLine(value: string): void {
+      if (seenKey) { flush(); seenKey = false; }
+      const [first = "", ...rest] = value.split(/\s+/);
+      // Separate an inline credential before URL normalization, which would
+      // otherwise percent-encode the space and put the credential in the path.
+      sharedUrl = /^https?:\/\//.test(first) ? first : value;
+      if (rest.some(part => /https?:\/\//.test(part))) sharedUrl = "";
+      current.url = sharedUrl;
+      if (sharedUrl) for (const part of rest) {
+        const found = bareKey(part, true);
+        if (found) appendKey(found.field, found.value, found.review);
       }
     }
     for (const raw of lines) {
@@ -105,20 +138,17 @@ export function parseText(text: string, image = false): Recognition {
         // A new field/heading ends the missing value; do not consume it as a Key.
         pendingKey = "";
       }
+      if (/^https?:\/\//.test(line)) { urlLine(line); continue; }
+      const found = bareKey(line, !!(sharedUrl || global.url));
+      if (found) { appendKey(found.field, found.value, found.review); continue; }
       const match = line.match(/^([^:：=]{1,60})\s*[:：=]\s*(.*?)\s*$/);
       if (match) {
         const label = normalized(match[1] || "");
         const value = unquote(match[2] || "");
         if (keyFields.includes(label)) {
-          if (seenKey) flush();
-          current[label] = value;
-          pendingKey = value ? "" : label;
-          if (pendingName && current.name === undefined) current.name = pendingName;
-          pendingName = ""; seenKey = true;
+          appendKey(label, value);
         } else if (urlFields.includes(label)) {
-          if (seenKey) { flush(); seenKey = false; }
-          sharedUrl = value;
-          current.url = value;
+          urlLine(value);
         } else if (["name", "名称", "供应商"].includes(label)) {
           if (seenKey) { flush(); seenKey = false; }
           current.name = value;
@@ -126,10 +156,6 @@ export function parseText(text: string, image = false): Recognition {
           current[label] = value;
           if (!seenKey) global[label] = value;
         } else if (line.length < 100) pendingName = line;
-      } else if (/^sk-[A-Za-z0-9_-]+$/.test(line)) {
-        if (seenKey) flush();
-        current.key = line; if (pendingName) current.name = pendingName;
-        pendingName = ""; seenKey = true;
       } else if (line && !/^https?:/.test(line) && line.length < 100) pendingName = line;
     }
     flush();
@@ -143,7 +169,7 @@ export function parseText(text: string, image = false): Recognition {
     const c = result.value;
     // Random text, even JSON, must not turn into a prompt.
     if (!c.url && !c.key) { issues.push(...result.issues); continue; }
-    c.needsKeyReview = image;
+    c.needsKeyReview = image || !!entry.review;
     const identity = JSON.stringify([c.url, c.key, c.protocol, c.model]);
     if (!seen.has(identity)) { seen.add(identity); candidates.push(c); issues.push(...result.issues); }
   }

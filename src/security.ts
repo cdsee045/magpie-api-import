@@ -6,6 +6,7 @@ export class ImportError extends Error {
 }
 export function abortIfNeeded(signal: AbortSignal): void { signal.throwIfAborted(); }
 export function normalizeUrl(input: string): string {
+  if (/\s/.test(input.trim())) throw new ImportError("URL", "API 地址不能包含空白字符，请把地址和 Key 分开填写。");
   let url: URL;
   try { url = new URL(input.trim()); } catch { throw new ImportError("URL", "请填写完整的 API 地址。"); }
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)
@@ -36,7 +37,7 @@ export function candidateIssues(candidate: Candidate, requireModel = true): stri
   const key = keyIssue(candidate.key); if (key) issues.push(key);
   if (requireModel && (!candidate.model.trim() || candidate.model.length > 200 || /[\u0000-\u001f]/.test(candidate.model))) issues.push("请选择或填写要验证的模型。");
   if (candidate.protocol !== "chat-completions") issues.push("首版仅支持 Chat Completions，请核对接口协议。");
-  if (candidate.needsKeyReview) issues.push("截图识别的 Key 需要核对后确认，插件不会猜测字符。");
+  if (candidate.needsKeyReview) issues.push("识别的 Key 需要核对后确认，插件不会猜测字符。");
   return issues;
 }
 export function publicError(error: unknown): string {

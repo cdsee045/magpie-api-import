@@ -70,11 +70,47 @@ describe("recognition", () => {
       expect(result.issues).toContain("Base64 Key 无效，请手动补全。");
     }
   });
-  test("only explicitly labelled Base64 keys are decoded", () => {
+  test("explicit literal key fields are not auto-decoded", () => {
     const encoded = Buffer.from(key).toString("base64");
     expect(parseText(`url: https://api.example.test\nkey: ${encoded}`).candidates[0]?.key).toBe(encoded);
     expect(parseText(JSON.stringify({ url: "https://api.example.test", key: encoded, keyEncoding: "base64" })).candidates[0]?.key).toBe(key);
     expect(parseText(`url: https://api.example.test\nKey(base64): invalid%%%`).issues).toContain("Base64 Key 无效，请手动补全。");
+  });
+  test("an inline URL and unlabelled Base64 sk-key are separated and require review", () => {
+    const fixtureKey = "sk-fixture_inline_123456789";
+    const encoded = Buffer.from(fixtureKey).toString("base64");
+    for (const prefix of ["url:", "baseurl: ", ""]) {
+      const { candidates, issues } = parseText(`${prefix}https://api.example.test/ ${encoded}`);
+      expect(issues).toEqual([]);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({ name: "我的 API", url: "https://api.example.test", key: fixtureKey, model: "", needsKeyReview: true });
+      expect(candidateIssues(candidates[0]!, false)).toEqual(["识别的 Key 需要核对后确认，插件不会猜测字符。"]);
+    }
+  });
+  test("unlabelled encoded keys share their URL without changing explicit literal keys", () => {
+    const first = "sk-fixture_inferred_first_123456789", second = "sk-fixture_inferred_second_123456789";
+    const encoded = Buffer.from(first).toString("base64");
+    const { candidates } = parseText(`url: https://a.example.test/v1 ${encoded}\n第二条\n${Buffer.from(second).toString("base64")}\nkey: ${encoded}\nurl: https://b.example.test/v1 sk-fixture_plain_123456789`);
+    expect(candidates.map(c => [c.url, c.key, c.needsKeyReview])).toEqual([["https://a.example.test/v1", first, true], ["https://a.example.test/v1", second, true], ["https://a.example.test/v1", encoded, false], ["https://b.example.test/v1", "sk-fixture_plain_123456789", false]]);
+    expect(candidates[1]?.name).toBe("第二条");
+    expect(parseText(JSON.stringify({ url: "https://a.example.test/v1", key: encoded })).candidates[0]?.key).toBe(encoded);
+    expect(parseText(`url: https://a.example.test/v1\nkeyEncoding: base64\n${encoded}`).candidates[0]?.key).toBe(first);
+  });
+  test("inline multiple encoded keys remain separate candidates", () => {
+    const keys = ["sk-fixture_inline_first_123456789", "sk-fixture_inline_second_123456789"];
+    const result = parseText(`url: https://api.example.test/v1 ${keys.map(k => Buffer.from(k).toString("base64")).join(" ")}`);
+    expect(result.candidates.map(c => c.key)).toEqual(keys);
+    expect(result.candidates.every(c => c.url === "https://api.example.test/v1" && c.needsKeyReview)).toBe(true);
+  });
+  test("unlabelled random or malformed Base64 is not treated as a credential or URL path", () => {
+    for (const value of [Buffer.from(key).toString("base64"), "c2st%%%", "c2stZml4dHVyZQ===", Buffer.from("sk-x").toString("base64")]) {
+      const { candidates } = parseText(`url:https://api.example.test/ ${value}`);
+      expect(candidates[0]).toMatchObject({ url: "https://api.example.test", key: "", needsKeyReview: false });
+      expect(candidates[0]?.url).not.toContain(value);
+    }
+    expect(parseText(Buffer.from("sk-fixture_without_url_123456789").toString("base64"))).toEqual({ candidates: [], issues: [] });
+    const ambiguous = parseText(`url: https://a.example.test/v1 or https://b.example.test/v1\nkey: ${key}`);
+    expect(ambiguous.candidates[0]?.url).toBe("");
   });
   test("unrelated contents are quiet and malformed JSON is actionable", () => {
     expect(parseText("今天是个好日子")).toEqual({ candidates: [], issues: [] });
@@ -101,7 +137,7 @@ describe("recognition", () => {
     expect(result.candidates.length).toBeLessThanOrEqual(50);
   });
   test("normalization rejects credential leakage and insecure remote HTTP", () => {
-    for (const url of ["javascript:alert(1)", "https://user:password@api.example.test", "https://api.example.test?key=secret", "https://api.example.test/#key", "http://api.example.test"])
+    for (const url of ["javascript:alert(1)", "https://user:password@api.example.test", "https://api.example.test?key=secret", "https://api.example.test/#key", "http://api.example.test", "https://api.example.test/ fixture-token", "https://api.example.test/\nfixture-token"])
       expect(() => normalizeUrl(url)).toThrow();
     expect(normalizeUrl("http://127.0.0.1:1234/v1/chat/completions")).toBe("http://127.0.0.1:1234/v1");
     expect(maskKey(key)).not.toContain(key); expect(maskKey("short")).toBe("••••••••");
