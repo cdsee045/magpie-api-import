@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import { _internal } from '../dist/plugin.mjs';
 
 const fixture = { name: '我的测试 API', key: 'fixture_browser_key_123456789', model: 'fixture-model' };
-let calls = 0, delay = 0, paths = [];
+let calls = 0, delay = 0, paths = [], authorizations = [];
 const api = createServer(async (req, res) => {
   let body = ''; for await (const chunk of req) body += chunk;
   paths.push(req.url);
+  authorizations.push(req.headers.authorization);
   if (req.url === '/v1/models') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ data: [{ id: 'fixture-model' }] })); return; }
   if (req.url.endsWith('/models')) { res.statusCode = 404; res.end('Not found'); return; }
   calls++; if (delay) await new Promise(resolve => setTimeout(resolve, delay));
@@ -69,6 +70,27 @@ try {
     await expect(page.locator('#choices button')).toHaveCount(2);
     await page.locator('#choices button').nth(1).click();
     await expect(page.locator('#summary')).toContainText('第二条'); checks++;
+    await context.close();
+  }
+  {
+    const { flow, page, context } = await fresh(); const before = calls, pathCount = paths.length;
+    const keys = ['sk-fixture_group_first_123456789', 'sk-fixture_group_second_123456789', 'sk-fixture_group_third_123456789'];
+    await paste(page, `baseurl: ${fixture.url}\n第一组\nKey(base64): ${Buffer.from(keys[0]).toString('base64')}\n第二组\nKey(base64):\n\n${Buffer.from(keys[1]).toString('base64')}\n第三组\nKey(base64):\n${Buffer.from(keys[2]).toString('base64')}`);
+    await expect(page.locator('#choices button')).toHaveCount(3);
+    assert.equal(calls, before); assert.equal(paths.length, pathCount); checks++;
+    const labels = await page.locator('#choices').innerText();
+    assert.ok(keys.every(key => !labels.includes(key) && !labels.includes(Buffer.from(key).toString('base64')))); checks++;
+    await page.locator('#choices button').nth(1).click();
+    await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await expect(page.locator('#url')).toHaveValue(fixture.url);
+    assert.deepEqual(paths.slice(pathCount), ['/v1/models']);
+    assert.deepEqual(authorizations.slice(pathCount), ['Bearer ' + keys[1]]); checks++;
+    await page.locator('#model-picker').selectOption(fixture.model); await page.locator('#validate').click();
+    await page.locator('#confirmation').waitFor({ state: 'visible' });
+    await expect(page.locator('#summary')).toContainText('第二组');
+    await page.locator('#confirm').click(); const result = await flow.result;
+    assert.equal(result.type, 'success'); assert.equal(result.key, keys[1]);
+    assert.equal(calls, before + 1); assert.deepEqual(authorizations.slice(pathCount), ['Bearer ' + keys[1], 'Bearer ' + keys[1]]); checks += 2;
     await context.close();
   }
   {

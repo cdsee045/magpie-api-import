@@ -33,6 +33,43 @@ describe("recognition", () => {
     expect(candidates).toHaveLength(2); expect(candidates[0]?.name).toBe("BLG 1:1"); expect(candidates[1]?.name).toBe("BLG 2:1"); expect(candidates[1]?.key).toBe(key + "B");
     expect(candidates.every(c => c.url === "https://api.example.test/v1" && c.model === "one")).toBe(true);
   });
+  test("one URL is shared by inline and next-line Base64 keys without losing headings", () => {
+    const keys = [key, key + "B", key + "C"];
+    const text = `baseurl: https://api.example.test/v1\n第一组\nKey(base64): ${Buffer.from(keys[0]!).toString("base64")}\n第二组\nKey(base64):\n\n${Buffer.from(keys[1]!).toString("base64")}\n第三组\nKey（base64）：\n\`${Buffer.from(keys[2]!).toString("base64")}\``;
+    const result = parseText(text);
+    expect(result.issues).toEqual([]);
+    expect(result.candidates.map(c => [c.name, c.url, c.key, c.model])).toEqual(keys.map((k, i) => [["第一组", "第二组", "第三组"][i]!, "https://api.example.test/v1", k, ""]));
+  });
+  test("multiple plain keys and mixed encodings share a URL and model", () => {
+    const keys = ["sk-fixture_first_123456789", "sk-fixture_second_123456789", "sk-fixture_third_123456789", "sk-fixture_fourth_123456789"];
+    const { candidates, issues } = parseText(`baseurl: https://api.example.test/v1\nmodel: one\nKey(base64):\n${Buffer.from(keys[0]!).toString("base64")}\nKey:\n${keys[1]}\n${keys[2]}\nAPI Key: ${keys[3]}`);
+    expect(issues).toEqual([]);
+    expect(candidates.map(c => c.key)).toEqual(keys);
+    expect(candidates.every(c => c.url === "https://api.example.test/v1" && c.model === "one")).toBe(true);
+  });
+  test("shared URLs stay with their own group when several groups have multiple keys", () => {
+    const { candidates } = parseText(`url: https://a.example.test/v1\nkey: ${key}\nkey: ${key}B\nurl: https://b.example.test/v1\nkey: ${key}C\nkey: ${key}D`);
+    expect(candidates.map(c => [c.url, c.key])).toEqual([["https://a.example.test/v1", key], ["https://a.example.test/v1", key + "B"], ["https://b.example.test/v1", key + "C"], ["https://b.example.test/v1", key + "D"]]);
+  });
+  test("a missing next-line Base64 value cannot consume another field or heading", () => {
+    const { candidates, issues } = parseText(`url: https://api.example.test/v1\nKey(base64):\n下一条\nkey: ${key}\nKey(base64):\nmodel: one\nkey: ${key}B`);
+    expect(issues).toContain("Base64 Key 无效，请手动补全。");
+    expect(candidates.filter(c => c.key).map(c => c.key)).toEqual([key, key + "B"]);
+    expect(candidates.find(c => c.key === key)?.name).toBe("下一条");
+  });
+  test("explicit Base64 accepts omitted padding but rejects malformed data", () => {
+    const encoded = Buffer.from(key + "AB").toString("base64");
+    expect(encoded).toEndWith("=");
+    for (const value of [encoded, encoded.replace(/=+$/, "")]) {
+      expect(parseText(`url: https://api.example.test/v1\nKey(base64):\n${value}`).candidates[0]?.key).toBe(key + "AB");
+      expect(parseText(JSON.stringify({ url: "https://api.example.test/v1", keyBase64: value })).candidates[0]?.key).toBe(key + "AB");
+    }
+    for (const value of ["Z", "Zh==", "Zg=", "Zg===", "%%%", "/w==", "c2stZml4dHVyZQ== trailing"]) {
+      const result = parseText(`url: https://api.example.test/v1\nKey(base64): ${value}`);
+      expect(result.candidates[0]?.key).toBe("");
+      expect(result.issues).toContain("Base64 Key 无效，请手动补全。");
+    }
+  });
   test("only explicitly labelled Base64 keys are decoded", () => {
     const encoded = Buffer.from(key).toString("base64");
     expect(parseText(`url: https://api.example.test\nkey: ${encoded}`).candidates[0]?.key).toBe(encoded);

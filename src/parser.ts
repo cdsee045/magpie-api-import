@@ -5,6 +5,7 @@ const urlFields = ["url", "baseurl", "apiurl", "apiaddress", "endpoint", "api", 
 const keyFields = ["key", "apikey", "token", "密钥", "秘钥", "apikeybase64", "keybase64"];
 const normalized = (s: string) => s.toLowerCase().replace(/[\s_\-()（）]/g, "");
 const string = (value: unknown) => typeof value === "string" ? value.trim() : "";
+const unquote = (value: string) => value.trim().replace(/^([`'"])([\s\S]*)\1$/, "$2").trim();
 function protocol(value: string): Protocol {
   if (!value || /^(?:openai(?:-compatible)?|chat(?:[- ]?completions)?|兼容openai)$/i.test(value)) return "chat-completions";
   if (/responses/i.test(value)) return "responses";
@@ -12,9 +13,12 @@ function protocol(value: string): Protocol {
   return "unknown";
 }
 function decode(value: string): string {
-  if (!value || !/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 !== 0) throw new ImportError("BASE64", "Base64 Key 无效，请手动补全。");
+  if (!value || !/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 === 1) throw new ImportError("BASE64", "Base64 Key 无效，请手动补全。");
   const bytes = Buffer.from(value, "base64");
-  if (bytes.toString("base64") !== value) throw new ImportError("BASE64", "Base64 Key 无效，请手动补全。");
+  // Explicitly labelled Base64 may omit padding; still reject noncanonical
+  // padding/bits rather than letting Buffer silently accept malformed input.
+  const canonical = bytes.toString("base64");
+  if ((value.includes("=") ? canonical : canonical.replace(/=+$/, "")) !== value) throw new ImportError("BASE64", "Base64 Key 无效，请手动补全。");
   const result = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   if (keyIssue(result)) throw new ImportError("BASE64", "Base64 解码后 Key 无效，请手动补全。");
   return result;
@@ -78,21 +82,42 @@ export function parseText(text: string, image = false): Recognition {
     if (urls.length === 1) global.url = urls[0];
     let current: Record<string, unknown> = {};
     let pendingName = "";
+    let pendingKey = "";
+    let sharedUrl = "";
     let seenKey = false;
-    function flush(): void { if (Object.keys(current).length) { records.push({ record: current, inherited: global }); current = {}; } }
+    function flush(): void {
+      if (Object.keys(current).length) {
+        records.push({ record: current, inherited: { ...global, ...(sharedUrl ? { url: sharedUrl } : {}) } });
+        current = {};
+      }
+    }
     for (const raw of lines) {
       const line = raw.trim().replace(/^[-*]\s+/, "");
+      if (!line || /^```[\w+-]*$/.test(line)) continue;
+      if (pendingKey) {
+        const value = unquote(line);
+        const continuation = /base64/.test(pendingKey) ? /^[A-Za-z0-9+/]+={0,2}$/ : /^[A-Za-z0-9_+/.=~\-]+$/;
+        if (continuation.test(value)) {
+          current[pendingKey] = value;
+          pendingKey = "";
+          continue;
+        }
+        // A new field/heading ends the missing value; do not consume it as a Key.
+        pendingKey = "";
+      }
       const match = line.match(/^([^:：=]{1,60})\s*[:：=]\s*(.*?)\s*$/);
       if (match) {
         const label = normalized(match[1] || "");
-        const value = (match[2] || "").replace(/^['"]|['"]$/g, "").trim();
+        const value = unquote(match[2] || "");
         if (keyFields.includes(label)) {
           if (seenKey) flush();
           current[label] = value;
+          pendingKey = value ? "" : label;
           if (pendingName && current.name === undefined) current.name = pendingName;
           pendingName = ""; seenKey = true;
         } else if (urlFields.includes(label)) {
-          if (seenKey && urls.length > 1) { flush(); seenKey = false; }
+          if (seenKey) { flush(); seenKey = false; }
+          sharedUrl = value;
           current.url = value;
         } else if (["name", "名称", "供应商"].includes(label)) {
           if (seenKey) { flush(); seenKey = false; }
