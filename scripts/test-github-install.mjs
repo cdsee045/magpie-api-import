@@ -35,11 +35,16 @@ import { createRequire } from 'node:module';
 const mod = await import('magpie-api-import');
 assert.equal(typeof mod.default, 'function');
 assert.equal(typeof mod._internal.createSession, 'function');
-assert.deepEqual(await mod.default({}), {});
+const hooks = await mod.default({});
+assert.equal(hooks.auth.provider, 'api-import');
+assert.equal(hooks.auth.methods[0].type, 'oauth');
+assert.equal(typeof hooks.auth.methods[0].authorize, 'function');
 const packagePath = path.resolve('node_modules/magpie-api-import');
 const pkg = JSON.parse(await readFile(path.join(packagePath,'package.json'),'utf8'));
 const require = createRequire(path.join(packagePath,'package.json'));
 for (const panel of pkg.magpie.panels) assert.ok((await stat(path.join(packagePath,panel.file))).isFile());
+assert.ok((await stat(path.join(packagePath,pkg.magpie.page.file))).isFile());
+for (const file of ['official.html','local-bridge.js','import.js']) assert.ok((await stat(path.join(packagePath,'ui',file))).isFile());
 assert.ok((await stat(path.join(packagePath,'src/ocr-worker.mjs'))).isFile());
 const core = path.dirname(require.resolve('tesseract.js-core/package.json'));
 assert.ok((await stat(path.join(core,'tesseract-core-simd-lstm.wasm'))).size > 0);
@@ -48,23 +53,18 @@ for (const language of ['eng','chi_sim']) {
   assert.ok((await stat(data)).size > 0);
 }
 const image = await readFile(${JSON.stringify(path.join(root, 'tests', 'fixtures', 'api-screenshot.png'))});
-let session;
+let flow;
 try {
-  await new Promise((resolve,reject) => {
-    const timeout=setTimeout(()=>reject(new Error('Installed package OCR timed out')),60_000);
-    session=mod._internal.createSession({
-      currentPage:()=> 'providers/custom/new',onPage:()=>()=>{},
-      async readClipboard(){return {kind:'image',png:image};},
-      async hasProvider(){throw new Error('OCR must require key review before validation');},
-      async appendProvider(){throw new Error('Installation check must not save providers');},
-      options:{async get(){return {auto:true};},async set(){}},
-    });
-    session.subscribe(state=>{
-      if(state.status==='review'){clearTimeout(timeout);resolve();}
-      if(state.status==='failed'){clearTimeout(timeout);reject(new Error('Installed package OCR failed'));}
-    });
-  });
-} finally {session?.dispose();}
+  flow=await mod._internal.startBrowserFlow();
+  const call=async(part,body)=>{
+    const response=await fetch(new URL(part,flow.url),{method:body?'POST':'GET',headers:{Origin:new URL(flow.url).origin,'X-API-Import':'1',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    assert.equal(response.status,200);return response.json();
+  };
+  await call('input',{kind:'image',png:image.toString('base64')});
+  await call('command',{type:'detect'});
+  assert.equal((await call('state')).status,'review');
+  await call('cancel',{});assert.equal((await flow.result).type,'failed');
+} finally {await flow?.close();}
 console.log(JSON.stringify({result:'PASS',spec:${JSON.stringify(spec)},version:pkg.version,entryLoaded:true,panelFilesPresent:true,localOcrFilesPresent:true,installedPackageOcrPassed:true,githubAuthentication:false},null,2));
 `;
 assert.ok(probe.length < 10_000);

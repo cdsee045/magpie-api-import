@@ -1,6 +1,6 @@
 # GitHub 下载与更新
 
-仓库 `cdsee045/magpie-api-import` 已公开，默认分支为 `main`。电脑不需要 GitHub 账号或 Token 即可下载开发版。公开范围包括源码、设计和技术文档、提交历史及 Actions 记录。
+仓库 `cdsee045/magpie-api-import` 已公开，默认分支为 `main`。电脑不需要 GitHub 账号或 Token 即可下载。公开范围包括源码、设计和技术文档、提交历史及 Actions 记录。
 
 ## 在其他电脑安装
 
@@ -12,13 +12,13 @@
 github:cdsee045/magpie-api-import#main
 ```
 
-这是仓库默认开发分支的固定地址。也可使用命令行：
+这是仓库默认分支的固定地址。也可使用命令行：
 
 ```powershell
 magpie plugin add github:cdsee045/magpie-api-import#main
 ```
 
-安装后的当前行为是设置中的兼容性说明面板。完整的自动识别、验证和供应商保存流程仍需要 Magpie 官方宿主接入，详见 [宿主接入说明](host-integration.md)。本次公开仅解决分发权限和更新来源，不改变功能接入状态。
+0.2.0 已改用官方登录接口。安装并启用后，在“已安装”中找到“API 导入”，点击“登录”，或运行 `magpie plugin login api-import`。在本机页面主动粘贴/选图、验证、确认，再返回 Magpie 查看登录结果。保存为插件供应商账号，不在原生新建表单自动读剪贴板，详见 [官方接入说明](host-integration.md)。
 
 ## 开发者提交更新
 

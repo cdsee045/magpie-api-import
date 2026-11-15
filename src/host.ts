@@ -6,14 +6,15 @@ import type { Candidate, Clipboard, ImportHost, Ocr, Receipt, ViewState } from "
 import type { Validator } from "./validator.ts";
 
 export interface NativeHost {
-  // All calls run in a trusted host process, not the sandboxed HTML frame.
+  // Internal adapter running in Bun. The official flow supplies explicit user
+  // input and hands validated auth back to Magpie; this is not a Magpie API.
   readClipboard(signal: AbortSignal): Promise<Clipboard>;
   hasProvider(identity: string, signal: AbortSignal): Promise<boolean>;
-  // Must atomically check cancellation and duplicates, append to Magpie's
-  // original store, and preserve every existing provider/default selection.
-  appendProvider(input: { candidate: Candidate; identity: string; verifiedModel: string; preserveDefaults: true }, signal: AbortSignal): Promise<{ id: string }>;
+  // Accept a privately validated result once. The official adapter resolves
+  // the login callback; Magpie itself owns account persistence and merging.
+  appendProvider(input: { candidate: Candidate; identity: string; verifiedModel: string; receipt: Receipt; preserveDefaults: true }, signal: AbortSignal): Promise<{ id: string }>;
   options: { get(): Promise<{ auto?: boolean }>; set(options: { auto: boolean }): Promise<void> };
-  // Derived from host navigation, NEVER a route string submitted by an iframe.
+  // Owned by the adapter's lifecycle, never an arbitrary route from a frame.
   onPage(listener: (page: string) => void): () => void;
   currentPage(): string;
 }
@@ -29,13 +30,17 @@ export interface ImportSession {
   dispose(): void;
 }
 
-export function createSession(native: NativeHost, deps: { validator?: Validator; ocr?: Ocr; now?: () => number } = {}): ImportSession {
+export function createSession(native: NativeHost, deps: { validator?: Validator; ocr?: Ocr; now?: () => number; scope?: string } = {}): ImportSession {
   const now = deps.now ?? Date.now;
-  let active = native.currentPage() === "providers/custom/new";
+  // The official plugin owns a short-lived browser login scope. The default
+  // remains for the original isolated creation-form harness, not a host API.
+  const scope = deps.scope ?? "providers/custom/new";
+  const controllerPage = (page: string) => page === scope ? "providers/custom/new" : "";
+  let active = native.currentPage() === scope;
   let closed = false;
   const assertPage = (signal?: AbortSignal) => {
     signal?.throwIfAborted();
-    if (closed || !active || native.currentPage() !== "providers/custom/new") throw new ImportError("PAGE", "请在新建自定义供应商页面操作。");
+    if (closed || !active || native.currentPage() !== scope) throw new ImportError("PAGE", "请在当前导入页面操作。");
   };
   // Only receipts emitted by this validator instance may authorize a save.
   const receipts = new Map<string, Receipt>();
@@ -59,18 +64,18 @@ export function createSession(native: NativeHost, deps: { validator?: Validator;
       if (!issued || receipt.fingerprint !== identity || issued.expiresAt <= now() || receipt.model !== candidate.model || candidateIssues(candidate).length)
         throw new ImportError("RECEIPT", "需要重新验证这条配置。");
       receipts.delete(identity);
-      return native.appendProvider({ candidate, identity: configFingerprint(candidate), verifiedModel: receipt.model, preserveDefaults: true }, signal);
+      return native.appendProvider({ candidate, identity: configFingerprint(candidate), verifiedModel: receipt.model, receipt: { ...issued }, preserveDefaults: true }, signal);
     },
     async getAuto() { return (await native.options.get()).auto !== false; },
     async setAuto(auto) { await native.options.set({ auto }); },
   };
   const controller = new ImportController(host, checkedValidator, deps.ocr ?? new LocalOcr(), now);
   const off = native.onPage(page => {
-    active = page === "providers/custom/new";
+    active = page === scope;
     if (!active) receipts.clear();
-    void controller.setPage(page);
+    void controller.setPage(controllerPage(page));
   });
-  void controller.setPage(native.currentPage());
+  void controller.setPage(controllerPage(native.currentPage()));
   return {
     subscribe: listener => controller.subscribe(listener),
     async command(command) {

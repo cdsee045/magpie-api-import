@@ -66,10 +66,9 @@
   async function start() {
     if (started) return; started=true;
     try {
-      await globalThis.magpie?.ready;
-      // This field is supplied ONLY by the proposed trusted host integration.
-      api = globalThis.magpie?.apiImport;
-      if (!api || api.version !== 1) { notice('当前 Magpie 尚未提供自动导入接口，请参阅插件兼容性说明。'); $('detect').disabled=true; $('auto').disabled=true; return; }
+      // This is the plugin's own loopback client, never an invented Magpie API.
+      api = globalThis.apiImport;
+      if (!api || api.version !== 1) { notice('导入会话未连接，请返回 Magpie 重新登录。'); $('detect').disabled=true; $('auto').disabled=true; return; }
       api.subscribe(render);
     } catch { notice('宿主连接失败，请重新打开自定义供应商页面。'); }
   }

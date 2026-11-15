@@ -27,7 +27,7 @@ export interface ViewState {
   selected: number;
   confirmation: null | { name: string; domain: string; maskedKey: string; protocol: string; model: string };
 }
-// These methods are a proposed trusted-host contract, not existing Magpie APIs.
+// Private controller adapter. These names are not public Magpie APIs.
 export interface ImportHost {
   readClipboard(signal: AbortSignal): Promise<Clipboard>;
   exists(candidate: Candidate, signal: AbortSignal): Promise<boolean>;
