@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createPreviewServer } from '../scripts/dev.mjs';
@@ -63,7 +63,7 @@ try{
   {
     const{context,page,frame}=await fresh();const fixture=await import('node:fs/promises').then(fs=>fs.readFile('tests/fixtures/api-screenshot.png'));
     await call('fixture',{scenario:'image',png:fixture.toString('base64')});await enter(page);await frame.locator('#review-wrap').waitFor({state:'visible',timeout:60000});assert.equal((await call('state')).requestCount,0);checks++;
-    await frame.locator('#reveal').click();const key=await frame.locator('#key').inputValue();assert.ok(key.length>10);checks++;
+    await frame.locator('#reveal').click();await expect(frame.locator('#key')).toHaveAttribute('type','text');const key=await frame.locator('#key').inputValue();assert.ok(key.length>10);checks++;
     await frame.locator('#key').fill('fixture_reviewed_key_123456789');await frame.locator('#url').fill(server.url+'/v1');await frame.locator('#review').check();await frame.locator('#validate').click();await prompt(frame).waitFor({state:'visible'});checks++;
     await context.close();
   }
