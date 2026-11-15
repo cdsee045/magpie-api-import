@@ -25,6 +25,8 @@ jobs:
         run: npx playwright install chromium
       - run: npm run check
       - run: npm run pack:check
+      - if: runner.os == 'Windows' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npm run test:github-install
   windows-bridge:
     runs-on: windows-latest
     steps:

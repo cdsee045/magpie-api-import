@@ -4,6 +4,20 @@
 
 **当前为开发预览，尚不能在官方版 Magpie 中安装即用。** 已完成解析、真实 HTTP 验证、本地 OCR、页面状态控制、确认界面、Windows 剪贴板桥接模块和隔离集成环境；官方宿主仍缺少新建供应商页面挂载、剪贴板读取和保存授权接口。仓库中的 `NativeHost` / `magpie.apiImport` 是待接入合同，不是已存在的官方 API。
 
+## 从 GitHub 安装与更新
+
+仓库已公开，其他电脑可以免 GitHub 登录下载。在 Magpie 的“插件 → 发现”页面底部安装框粘贴：
+
+```text
+github:cdsee045/magpie-api-import#main
+```
+
+点击“安装”。当前开发版安装后只在设置中显示兼容性说明；从 GitHub 下载成功不代表宿主已经支持自动导入功能。
+
+后续修改经过测试并提交、推送到 `main` 后，其他电脑继续使用同一个安装地址。Magpie 会检查所跟踪分支的提交变化，出现更新提示后，到“插件 → 已安装”点击“更新”。此仓库不是社区自动更新包，需要用户点击更新；分支变更检查可能有约 10 分钟缓存。[官方安装与更新说明](https://usemagpie.ai/docs/plugins#how-magpie-runs-plugins)
+
+仓库源码及设计文档：[cdsee045/magpie-api-import](https://github.com/cdsee045/magpie-api-import)。详细流程与故障处理见 [GitHub 分发说明](docs/github-distribution.md)。
+
 ## 在本机运行
 
 需要 Node.js 22 或更新版本；Bun 已列入开发依赖，Magpie 自己使用 Bun 运行插件。所有依赖来自 npm，OCR 引擎 WASM 与中英文语言数据由依赖提供，识别时不下载模型、不使用云端 OCR。
@@ -58,6 +72,8 @@ npm run build
 # 安装 Playwright Chromium，或指定已有 Chrome 的完整路径：
 npx playwright install chromium
 npm run test:browser
+# 验证从公开 GitHub 实际下载和加载（需要联网）：
+npm run test:github-install
 ```
 
 使用已有 Chrome 时，设置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`。Windows 原生桥接使用 Go 1.23 或更新版本：
@@ -82,4 +98,4 @@ go -C integration/windows build ./...
 - `scripts/dev.mjs`：隔离开发集成服务，不属于正式插件运行路径。
 - `demo/`：保留的早期模拟交互 Demo。
 
-本项目不实现余额查询、默认供应商自动切换、批量导入和跨软件配置。仓库暂设为私有，npm 发布被 `private: true` 禁止；待真实宿主验收完成后再决定发布。
+本项目不实现余额查询、默认供应商自动切换、批量导入和跨软件配置。GitHub 仓库已公开用于开发版分发；`package.json` 中的 `private: true` 只禁止 npm 发布，不影响从公开 GitHub 安装。正式产品和市场发布仍需完成真实宿主验收。

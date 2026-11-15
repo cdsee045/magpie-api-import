@@ -12,6 +12,7 @@
     "test": "bun test tests/core",
     "test:demo": "node --test tests/demo.test.cjs",
     "test:browser": "node tests/ui.browser.mjs",
+    "test:github-install": "node scripts/test-github-install.mjs",
     "check": "npm run typecheck && npm test && npm run test:demo && npm run build && npm run test:browser",
     "dev": "npm run build && node scripts/dev.mjs",
     "pack:check": "npm pack --dry-run"
