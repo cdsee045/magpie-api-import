@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { _internal } from '../dist/plugin.mjs';
+import { keys as sharedKeys } from './fixtures/shared-api.mjs';
 
 const fixture = { name: '我的测试 API', key: 'fixture_browser_key_123456789', model: 'fixture-model' };
 let calls = 0, delay = 0, paths = [], authorizations = [];
@@ -133,6 +134,21 @@ try {
   }
   {
     const { page, context } = await fresh();
+    await paste(page, `url:${fixture.url} ${Buffer.from('sk-fixture_late_encoded_123456789').toString('base64')}`);
+    await expect(page.locator('#review-wrap')).toBeVisible();
+    await page.route('**/encoded-key', async route => {
+      const response = await route.fetch();
+      await page.evaluate(() => { Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange')); });
+      await route.fulfill({response});
+    });
+    const response = page.waitForResponse(r => r.url().endsWith('/encoded-key'));
+    await page.locator('#encoded-reveal').click(); await response;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.locator('#encoded-key')).toHaveValue(''); await expect(page.locator('#encoded-editor')).toBeHidden(); checks++;
+    await context.close();
+  }
+  {
+    const { page, context } = await fresh();
     await page.locator('#image-file').setInputFiles('tests/fixtures/api-screenshot.png');
     await page.locator('#parse-input').click();
     await page.locator('#review-wrap').waitFor({ state: 'visible', timeout: 60000 });
@@ -142,6 +158,32 @@ try {
     await page.locator('#key').fill(fixture.key); await page.locator('#url').fill(fixture.url);
     await page.locator('#model').fill(fixture.model); await page.locator('#review').check(); await page.locator('#validate').click();
     await page.locator('#confirmation').waitFor({ state: 'visible' }); checks++;
+    await context.close();
+  }
+  {
+    const { flow, page, context } = await fresh(375); const before=calls, pathCount=paths.length;
+    await page.locator('#image-file').setInputFiles('tests/fixtures/shared-api-screenshot.png'); await page.locator('#parse-input').click();
+    await expect(page.locator('#choices button')).toHaveCount(3,{timeout:60000});
+    assert.equal(paths.length,pathCount); assert.equal(calls,before); checks++;
+    await page.locator('#choices button').nth(1).click(); await expect(page.locator('#url-picker')).toBeVisible();
+    await expect(page.locator('#url')).toHaveValue('');
+    await page.locator('#url-picker').selectOption('https://cdn.example.test');
+    await expect(page.locator('#url')).toHaveValue('https://cdn.example.test');
+    assert.equal(paths.length,pathCount); checks++;
+    await expect(page.locator('#encoded-key')).toHaveValue('');
+    await page.locator('#encoded-reveal').click(); await expect(page.locator('#encoded-editor')).toBeVisible();
+    assert.ok((await page.locator('#encoded-key').inputValue()).length>70); checks++;
+    await page.locator('#encoded-key').fill('%%%'); await page.locator('#decode-key').click(); await expect(page.locator('#notice')).toContainText('Base64 解码失败');
+    await page.locator('#encoded-key').fill(Buffer.from(sharedKeys[1]).toString('base64')); await page.locator('#decode-key').click();
+    await expect(page.locator('#notice')).toContainText('本机重新解码');
+    assert.equal(paths.length,pathCount); checks++;
+    const width=await page.evaluate(()=>({viewport:innerWidth,scroll:document.documentElement.scrollWidth})); assert.ok(width.scroll<=width.viewport+1); checks++;
+    await page.screenshot({path:'artifacts/official-ui/multi-key.png',fullPage:true});
+    await page.locator('#url').fill(fixture.url); await page.locator('#model').fill(fixture.model); await page.locator('#review').check(); await page.locator('#validate').click();
+    await page.locator('#confirmation').waitFor({state:'visible'}); await expect(page.locator('#encoded-key')).toHaveValue('');
+    await page.locator('#confirm').click(); const result=await flow.result;
+    assert.equal(result.type,'success'); assert.equal(result.key,sharedKeys[1]); assert.equal(calls,before+1);
+    assert.deepEqual(authorizations.slice(pathCount),['Bearer '+sharedKeys[1]]); checks+=2;
     await context.close();
   }
   for (const width of [320, 375, 736, 1100]) for (const colorScheme of ['light', 'dark']) {

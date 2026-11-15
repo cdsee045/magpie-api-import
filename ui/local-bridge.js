@@ -28,6 +28,7 @@
     version: 1,
     async command(command) { await call('command', command); await poll(); },
     async revealKey() { return (await call('key', {})).key; },
+    async revealEncodedKey() { return (await call('encoded-key', {})).encoded; },
     subscribe(listener) { listeners.add(listener); if (last) listener(JSON.parse(last)); void poll(); timer ??= setInterval(poll, 300); return () => listeners.delete(listener); },
   };
   function selectImage(file) {
@@ -68,6 +69,7 @@
       const body = selectedImage ? { kind: 'image', png: await pngBase64(selectedImage) } : { kind: 'text', text: $('input-text').value };
       if (body.kind === 'text' && !body.text.trim()) { $('input-notice').textContent = '请先粘贴 API 信息或选择截图。'; return; }
       await call('input', body);
+      $('key').value = ''; $('encoded-key').value = ''; $('encoded-editor').hidden = true;
       $('input-text').value = ''; selectedImage = undefined; $('image-file').value = ''; $('clear-image').hidden = true;
       $('input-notice').textContent = '输入已交给本机识别，原始内容已从输入框清空。';
       await globalThis.apiImport.command({ type: 'detect' });
@@ -75,7 +77,7 @@
     finally { processing = false; $('parse-input').disabled = ended; }
   };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { $('key').value = ''; $('key').type = 'password'; if ($('confirmation').open) $('confirmation').close(); }
+    if (document.hidden) { $('key').value = ''; $('key').type = 'password'; $('encoded-key').value = ''; $('encoded-editor').hidden = true; if ($('confirmation').open) $('confirmation').close(); }
     if (!ended) void call(document.hidden ? 'suspend' : 'resume', {}, true).then(poll).catch(() => {});
   });
   addEventListener('pagehide', () => {

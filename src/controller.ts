@@ -1,6 +1,6 @@
 import type { Candidate, ImportHost, Ocr, Receipt, Status, ViewState } from "./types.ts";
 import { candidateIssues, configFingerprint, digest, fingerprint, maskKey, normalizeUrl, publicError } from "./security.ts";
-import { parseText } from "./parser.ts";
+import { decodeBase64Key, parseText } from "./parser.ts";
 import type { Validator } from "./validator.ts";
 
 export class ImportController {
@@ -24,7 +24,7 @@ export class ImportController {
     const chosen = this.candidates[this.selected];
     return {
       status: this.status, message: this.message, auto: this.auto, active: this.active,
-      candidates: this.candidates.map(({ key, ...c }) => ({ ...c, models: [...c.models], maskedKey: maskKey(key) })), selected: this.selected,
+      candidates: this.candidates.map(({ key, encodedKey, ...c }) => ({ ...c, ...(c.urlOptions ? { urlOptions: [...c.urlOptions] } : {}), models: [...c.models], maskedKey: maskKey(key), hasEncodedKey: !!encodedKey })), selected: this.selected,
       confirmation: this.active && this.status === "verified" && chosen && this.receipt ? {
         name: chosen.name, domain: new URL(chosen.url).host, maskedKey: maskKey(chosen.key), protocol: "Chat Completions", model: this.receipt.model,
       } : null,
@@ -32,6 +32,7 @@ export class ImportController {
   }
   subscribe(listener: (state: ViewState) => void): () => void { this.listeners.add(listener); listener(this.snapshot()); return () => this.listeners.delete(listener); }
   revealKey(): string { return this.active && !this.disposed ? this.candidates[this.selected]?.key ?? "" : ""; }
+  revealEncodedKey(): string { return this.active && !this.disposed ? this.candidates[this.selected]?.encodedKey ?? "" : ""; }
   private emit(): void { const state = this.snapshot(); for (const listener of this.listeners) { try { listener(state); } catch { /* UI errors must not expose raw controller data. */ } } }
   private update(status: Status, message = ""): void { this.status = status; this.message = message; this.emit(); }
   private cancel(): number { this.running.abort(); this.running = new AbortController(); this.receipt = null; return ++this.sequence; }
@@ -110,6 +111,15 @@ export class ImportController {
     Object.assign(chosen, changes);
     if (reviewed) chosen.needsKeyReview = false;
     this.update("incomplete", "配置已修改，请重新验证。验证可能产生少量费用。");
+  }
+  decodeKey(encoded: string): void {
+    const chosen = this.candidates[this.selected];
+    if (!this.active || !chosen || this.status === "saving") return;
+    this.cancel(); chosen.encodedKey = encoded.replace(/\s+/g, ""); chosen.key = ""; chosen.needsKeyReview = true;
+    try {
+      chosen.key = decodeBase64Key(chosen.encodedKey);
+      this.update("review", "已在本机重新解码。请核对完整 Key 和对应地址，勾选确认后再验证。");
+    } catch { this.update("review", "Base64 解码失败，请核对原文中的字符和换行后重试；不会猜测或替换字符。"); }
   }
   async loadModels(): Promise<void> {
     const chosen = this.candidates[this.selected];

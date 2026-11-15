@@ -2,7 +2,9 @@ export type Protocol = "chat-completions" | "responses" | "anthropic" | "unknown
 export interface Candidate {
   name: string;
   url: string;
+  urlOptions?: string[];
   key: string;
+  encodedKey?: string;
   protocol: Protocol;
   model: string;
   models: string[];
@@ -23,7 +25,7 @@ export interface ViewState {
   message: string;
   auto: boolean;
   active: boolean;
-  candidates: Array<Omit<Candidate, "key"> & { maskedKey: string }>;
+  candidates: Array<Omit<Candidate, "key" | "encodedKey"> & { maskedKey: string; hasEncodedKey: boolean }>;
   selected: number;
   confirmation: null | { name: string; domain: string; maskedKey: string; protocol: string; model: string };
 }

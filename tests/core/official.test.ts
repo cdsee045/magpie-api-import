@@ -27,6 +27,8 @@ describe("official Magpie provider hooks", () => {
     const auth = savedAuth(); expect(auth.metadata.model).toBe(candidate.model);
     expect(JSON.stringify(auth.metadata)).not.toContain(candidate.key);
     expect(JSON.stringify(auth.metadata)).not.toContain("unverified-model");
+    const encoded = Buffer.from(candidate.key).toString("base64");
+    expect(JSON.stringify(savedAuth({ ...candidate, encodedKey: encoded }).metadata)).not.toContain(encoded);
     expect(() => makeAuth(candidate, { ...receipt(), model: "other" })).toThrow();
     expect(() => makeAuth(candidate, { ...receipt(), expiresAt: 0 })).toThrow();
     expect(() => readAuth({ ...auth, key: "another_fixture_key_123456" })).toThrow();
@@ -59,6 +61,30 @@ describe("official Magpie provider hooks", () => {
 });
 
 describe("explicit, short-lived browser import", () => {
+  test("encoded credentials are private, editable and revoked on navigation", async () => {
+    let validates = 0, lists = 0;
+    const encoded = Buffer.from(candidate.key).toString("base64");
+    const flow = await startBrowserFlow({ validator: { async models() { lists++; return [candidate.model]; }, async validate(c) { validates++; return receipt(c); } } });
+    try {
+      await flowCall(flow.url, "input", { kind: "text", text: `url: ${candidate.url}\nKey1(BASE64): invalid%%%\nmodel: ${candidate.model}` });
+      await flowCall(flow.url, "command", { type: "detect" });
+      const publicState = await state(flow.url); expect(publicState.candidates[0]?.hasEncodedKey).toBe(true);
+      expect(JSON.stringify(publicState)).not.toContain("invalid%%%");
+      expect((await flowCall(flow.url, "encoded-key", {}, { Origin: "https://evil.example" })).status).toBe(403);
+      expect((await (await flowCall(flow.url, "encoded-key", {})).json()).encoded).toBe("invalid%%%");
+      expect((await flowCall(flow.url, "command", { type: "decode", encoded: 123 })).status).toBe(400);
+      await flowCall(flow.url, "command", { type: "decode", encoded });
+      const reviewed = await state(flow.url); expect(reviewed.status).toBe("review");
+      expect(JSON.stringify(reviewed)).not.toContain(encoded); expect(JSON.stringify(reviewed)).not.toContain(candidate.key);
+      await flowCall(flow.url, "command", { type: "models" }); await flowCall(flow.url, "command", { type: "verify" });
+      expect(lists).toBe(0); expect(validates).toBe(0);
+      await flowCall(flow.url, "command", { type: "edit", changes: {}, reviewed: true });
+      await flowCall(flow.url, "command", { type: "verify" }); expect(validates).toBe(1);
+      await flowCall(flow.url, "command", { type: "decode", encoded: "%%%" });
+      expect((await state(flow.url)).confirmation).toBeNull();
+      await flowCall(flow.url, "suspend", {}); expect((await flowCall(flow.url, "encoded-key", {})).status).toBe(409);
+    } finally { await flow.close(); }
+  });
   test("real HTTP validation plus one confirmation yields official API auth, never a disk/config write", async () => {
     let requests = 0;
     const api = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) { requests++; expect(request.headers.get("authorization")).toBe("Bearer " + candidate.key); return Response.json({ choices: [{ message: { role: "assistant", content: "OK" } }] }); } });

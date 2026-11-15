@@ -15,8 +15,9 @@
   <form id="editor" hidden autocomplete="off">
     <div class="form-head"><h2>核对配置</h2><span id="validation-label" class="muted">尚未验证</span></div>
     <label>供应商名称<input id="name" maxlength="100" required></label>
-    <label>API 地址<input id="url" type="url" placeholder="https://api.example.com/v1" required spellcheck="false"></label>
+    <label>API 地址<input id="url" type="url" placeholder="https://api.example.com/v1" required spellcheck="false"><select id="url-picker" aria-label="识别到的 API 地址" hidden></select></label>
     <label>API Key<span class="key-field"><input id="key" type="password" placeholder="保留识别到的 Key，填写可替换" spellcheck="false" autocomplete="new-password"><button id="reveal" type="button" aria-label="显示已识别的 Key">显示</button></span><small id="masked-key" class="muted"></small></label>
+    <div id="encoded-wrap" hidden><button id="encoded-reveal" type="button">核对 Base64 原文</button><label id="encoded-editor" hidden>Base64 编码<textarea id="encoded-key" rows="3" spellcheck="false" autocomplete="off"></textarea><button id="decode-key" type="button">在本机重新解码</button></label><small class="muted">截图可能误读字符；解码失败时，可对照原图修正编码后重试。</small></div>
     <label>协议<select id="protocol"><option value="chat-completions">Chat Completions（OpenAI 兼容）</option><option value="responses">Responses（暂不支持）</option><option value="anthropic">Anthropic Messages（暂不支持）</option><option value="unknown">未识别，请核对</option></select></label>
     <label>验证模型<span class="model-field"><input id="model" list="models" maxlength="200" placeholder="填写模型 ID，或从下方列表选择" required spellcheck="false"><button id="load-models" type="button">获取模型</button></span><select id="model-picker" aria-label="已获取的模型" hidden></select><datalist id="models"></datalist></label>
     <label id="review-wrap" class="review" hidden><input id="review" type="checkbox">我已逐字核对识别的完整 Key 和对应 API 地址</label>

@@ -21,12 +21,14 @@ export interface NativeHost {
 export type Command =
   | { type: "detect" } | { type: "verify" } | { type: "models" } | { type: "confirm" } | { type: "dismiss" }
   | { type: "select"; index: number } | { type: "auto"; value: boolean }
+  | { type: "decode"; encoded: string }
   | { type: "edit"; changes: Partial<Pick<Candidate, "name" | "url" | "key" | "model" | "protocol">>; reviewed?: boolean };
 
 export interface ImportSession {
   subscribe(listener: (state: ViewState) => void): () => void;
   command(command: Command): Promise<void>;
   revealKey(): string;
+  revealEncodedKey(): string;
   dispose(): void;
 }
 
@@ -88,6 +90,9 @@ export function createSession(native: NativeHost, deps: { validator?: Validator;
         case "dismiss": receipts.clear(); controller.dismiss(); break;
         case "auto": if (typeof command.value !== "boolean") throw new ImportError("COMMAND", "设置格式错误。"); await controller.setAuto(command.value); break;
         case "select": receipts.clear(); await controller.select(command.index); break;
+        case "decode":
+          if (typeof command.encoded !== "string" || command.encoded.length > 11_000) throw new ImportError("COMMAND", "编码格式错误。");
+          receipts.clear(); controller.decodeKey(command.encoded); break;
         case "edit": {
           receipts.clear();
           const changes: Partial<Candidate> = {};
@@ -103,6 +108,7 @@ export function createSession(native: NativeHost, deps: { validator?: Validator;
       }
     },
     revealKey() { assertPage(); return controller.revealKey(); },
+    revealEncodedKey() { assertPage(); return controller.revealEncodedKey(); },
     dispose() { closed = true; active = false; receipts.clear(); off(); controller.dispose(); },
   };
 }

@@ -1,9 +1,37 @@
 import { describe, expect, test } from "bun:test";
 import { parseText } from "../../src/parser.ts";
 import { candidateIssues, fingerprint, maskKey, normalizeUrl } from "../../src/security.ts";
+import { sharedText, keys as sharedKeys, models as sharedModels, urls as sharedUrls } from "../fixtures/shared-api.mjs";
 
 const key = "unit_test_key_123456789";
 describe("recognition", () => {
+  test("numbered wrapped Base64 keys retain their own models and offer both preamble URLs", () => {
+    const { candidates } = parseText(sharedText(), true);
+    expect(candidates).toHaveLength(3);
+    for (const [i, c] of candidates.entries()) {
+      expect(c.name).toBe(`Key ${i + 1}`); expect(c.key).toBe(sharedKeys[i]!);
+      expect(c.models).toEqual(sharedModels[i]!); expect(c.url).toBe("");
+      expect(c.urlOptions).toEqual(sharedUrls); expect(c.needsKeyReview).toBe(true);
+    }
+  });
+  test("OCR URL icons/labels and whitespace in explicit encoded blocks are supported", () => {
+    const text = sharedText().replace("url: ↗", "urlLZ").replace("url（CDN加速）： ↗", "url (CDN 加 速 ) : 四").replace("key2(BASE64):", "API Key 2（ BASE64 ）：").replace(/(c2st\w{12})/g, "$1 ");
+    const { candidates } = parseText(text, true);
+    expect(candidates.map(c => c.key)).toEqual(sharedKeys);
+    expect(candidates.every(c => c.urlOptions?.length === 2 && !c.url)).toBe(true);
+  });
+  test("failed OCR Base64 remains editable without inventing a decoded credential", () => {
+    const { candidates, issues } = parseText(sharedText().replace(/c2st/g, "c2st%%%").replace(/可用模型:.*/g, "可用模型: same-model"), true);
+    expect(candidates).toHaveLength(3); expect(candidates.every(c => !c.key && c.encodedKey?.startsWith("c2st%%%"))).toBe(true);
+    expect(issues).toContain("Base64 Key 无效，请手动补全。");
+  });
+  test("unpadded Base64 does not absorb the following English heading", () => {
+    const encoded = Buffer.from("sk-fixture_official_key_123456789").toString("base64");
+    expect(encoded).not.toEndWith("=");
+    const result = parseText(`url: https://api.example.test/v1\nFirst fixture\nKey(base64): ${encoded}\nSecond fixture\nKey: sk-fixture_second_123456789`);
+    expect(result.candidates.map(c => c.name)).toEqual(["First fixture", "Second fixture"]);
+    expect(result.candidates[0]?.key).toBe("sk-fixture_official_key_123456789");
+  });
   test("JSON extracts fields and normalizes a complete endpoint", () => {
     const result = parseText(JSON.stringify({ name: "测试 API", base_url: "https://api.example.test/v1/chat/completions/", api_key: key, model: "test-model", models: ["other"] }));
     expect(result.candidates[0]).toMatchObject({ name: "测试 API", url: "https://api.example.test/v1", key, protocol: "chat-completions", model: "test-model", models: ["test-model", "other"] });

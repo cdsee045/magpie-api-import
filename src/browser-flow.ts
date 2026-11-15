@@ -102,8 +102,9 @@ export async function startBrowserFlow(options: { signal?: AbortSignal; validato
         return send(res, 200, { ok: true });
       }
       if (part === "key") return send(res, 200, { key: flowSession.revealKey() });
+      if (part === "encoded-key") return send(res, 200, { encoded: flowSession.revealEncodedKey() });
       if (part === "command") {
-        if (!["detect", "verify", "models", "confirm", "dismiss", "select", "edit"].includes(String(body.type))) throw new ImportError("COMMAND", "无法识别操作。");
+        if (!["detect", "verify", "models", "confirm", "dismiss", "select", "edit", "decode"].includes(String(body.type))) throw new ImportError("COMMAND", "无法识别操作。");
         await flowSession.command(body as unknown as Command);
         return send(res, 200, { ok: true });
       }

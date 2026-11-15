@@ -45,6 +45,7 @@ const api = createServer(async (req, res) => {
     modelLists++; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ data: [{ id: 'fixture-model' }] })); return;
   }
   const body = JSON.parse(raw); assert.equal(body.model, 'fixture-model');
+  assert.equal(req.url, '/v1/chat/completions');
   assert.equal(req.headers.authorization, 'Bearer ' + candidate.key); calls++;
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'OK' } }] }));
@@ -83,7 +84,13 @@ async function importOne(format = 'json') {
   assert.equal(login.ok, true); assert.ok(login.url.startsWith('http://127.0.0.1:'));
   const completed = ask('callback', { session: login.session });
   const input = format === 'newapi' ? { _type: 'newapi_channel_conn', url: new URL(baseURL).origin, key: candidate.key } : candidate;
-  const text = format === 'bare-base64' ? `url:${baseURL}/ ${Buffer.from(candidate.key).toString('base64')}` : format === 'shared-base64' ? `baseurl: ${baseURL}\nmodel: ${candidate.model}\nFirst fixture\nKey(base64): ${Buffer.from('fixture_unselected_first_key_123456789').toString('base64')}\n${candidate.name}\nKey(base64):\n${Buffer.from(candidate.key).toString('base64')}\nThird fixture\nKey(base64):\n${Buffer.from('fixture_unselected_third_key_123456789').toString('base64')}` : JSON.stringify(input);
+  let text = JSON.stringify(input);
+  if (format === 'bare-base64') text = `url:${baseURL}/ ${Buffer.from(candidate.key).toString('base64')}`;
+  if (format === 'shared-base64') text = `baseurl: ${baseURL}\nmodel: ${candidate.model}\nFirst fixture\nKey(base64): ${Buffer.from('fixture_unselected_first_key_123456789').toString('base64')}\n${candidate.name}\nKey(base64):\n${Buffer.from(candidate.key).toString('base64')}\nThird fixture\nKey(base64):\n${Buffer.from('fixture_unselected_third_key_123456789').toString('base64')}`;
+  if (format === 'numbered') text = `url: ${new URL(baseURL).origin}/unused\nurl(CDN加速): ${baseURL}\n` + ['fixture_first_unused_key', candidate.key, 'fixture_third_unused_key'].map((key, i) => {
+    const encoded = Buffer.from(key).toString('base64');
+    return `key${i + 1}(BASE64):\n${encoded.slice(0, 30)}\n${encoded.slice(30)}\n可用模型: ${candidate.model} | fixture-other`;
+  }).join('\n\n');
   const before = calls, listsBefore = modelLists;
   await call(login.url, 'input', { kind: 'text', text });
   await call(login.url, 'command', { type: 'detect' });
@@ -93,6 +100,18 @@ async function importOne(format = 'json') {
     assert.equal(waiting.candidates.length, 3); assert.equal(calls, before); assert.equal(modelLists, listsBefore);
     await call(login.url, 'command', { type: 'select', index: 1 });
     assert.equal(calls, before + 1);
+  }
+  if (format === 'numbered') {
+    const response = await fetch(new URL('state', login.url), { headers: { 'X-API-Import': '1' } });
+    const waiting = await response.json(); assert.equal(waiting.status, 'selecting'); assert.equal(waiting.candidates.length, 3);
+    assert.equal(waiting.candidates[1].url, ''); assert.equal(waiting.candidates[1].urlOptions.length, 2);
+    await call(login.url, 'command', { type: 'select', index: 1 });
+    assert.equal(calls, before); assert.equal(modelLists, listsBefore);
+    await call(login.url, 'command', { type: 'edit', changes: { url: baseURL } });
+    await call(login.url, 'command', { type: 'decode', encoded: Buffer.from(candidate.key).toString('base64') });
+    await call(login.url, 'command', { type: 'verify' }); assert.equal(calls, before);
+    await call(login.url, 'command', { type: 'edit', changes: {}, reviewed: true });
+    await call(login.url, 'command', { type: 'verify' }); assert.equal(calls, before + 1);
   }
   if (format === 'bare-base64') {
     const response = await fetch(new URL('state', login.url), { headers: { 'X-API-Import': '1' } });
@@ -135,6 +154,7 @@ try {
   assert.ok(Buffer.concat(sent.events.filter(e => e.event === 'chunk').map(e => Buffer.from(e.data, 'base64'))).toString().includes('OK'));
   await importOne('shared-base64'); // selected decoded key updates the same official account
   await importOne('bare-base64'); // inferred key waits for review, then updates that account
+  await importOne('numbered'); // choose one key/address and explicitly re-decode before saving
   providers = await ask('providers'); assert.equal(providers.find(p => p.id === 'api-import').accounts.length, 1);
   const cancelled = await ask('authorize', { provider: 'api-import', method: 0 });
   const cancelledResult = ask('callback', { session: cancelled.session });
@@ -146,7 +166,7 @@ try {
   await new Promise(resolve => host.once('close', resolve));
   const reloaded = JSON.parse(await cli(['plugin', 'list', '--json']));
   const actual = reloaded.providers.find(p => p.id === 'api-import'); assert.equal(actual.accounts.length, 1); assert.equal(actual.models[0].apiId, candidate.model);
-  console.log(JSON.stringify({ result: 'PASS', version, officialHost: hostName, pluginLoaded: true, newApiRootAndModelSelectionPassed: true, sharedUrlMultilineBase64Passed: true, unlabelledInlineBase64Passed: true, officialAccountSaved: true, accountReloaded: true, gatewayFetchHookPassed: true, duplicateAccountPrevented: true, cancelledLoginNotSaved: true, unrelatedAccountPreserved: true, fixtureRequests: calls, realCredentialsUsed: false, sandbox: directory }, null, 2));
+  console.log(JSON.stringify({ result: 'PASS', version, officialHost: hostName, pluginLoaded: true, newApiRootAndModelSelectionPassed: true, sharedUrlMultilineBase64Passed: true, unlabelledInlineBase64Passed: true, numberedKeysAndAddressSelectionPassed: true, officialAccountSaved: true, accountReloaded: true, gatewayFetchHookPassed: true, duplicateAccountPrevented: true, cancelledLoginNotSaved: true, unrelatedAccountPreserved: true, fixtureRequests: calls, realCredentialsUsed: false, sandbox: directory }, null, 2));
 } finally {
   host.kill(); lines.close(); for (const item of pending.values()) { clearTimeout(item.timeout); item.reject(new Error('test shutdown')); }
   api.closeAllConnections(); await new Promise(resolve => api.close(resolve));
