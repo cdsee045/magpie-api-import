@@ -5,10 +5,12 @@ export interface Candidate {
   urlOptions?: string[];
   key: string;
   encodedKey?: string;
+  encodedKeyOriginal?: string;
   protocol: Protocol;
   model: string;
   models: string[];
   needsKeyReview: boolean;
+  keyReviewNote?: string;
 }
 export type Clipboard = { kind: "text"; text: string } | { kind: "image"; png: Uint8Array } | { kind: "empty" };
 export interface Recognition { candidates: Candidate[]; issues: string[] }
@@ -25,7 +27,7 @@ export interface ViewState {
   message: string;
   auto: boolean;
   active: boolean;
-  candidates: Array<Omit<Candidate, "key" | "encodedKey"> & { maskedKey: string; hasEncodedKey: boolean }>;
+  candidates: Array<Omit<Candidate, "key" | "encodedKey" | "encodedKeyOriginal"> & { maskedKey: string; hasEncodedKey: boolean; hasEncodedOriginal: boolean }>;
   selected: number;
   confirmation: null | { name: string; domain: string; maskedKey: string; protocol: string; model: string };
 }
@@ -37,5 +39,5 @@ export interface ImportHost {
   getAuto(): Promise<boolean>;
   setAuto(value: boolean): Promise<void>;
 }
-export interface OcrResult { text: string; keyReviewRequired: boolean }
+export interface OcrResult { text: string; keyReviewRequired: boolean; engine?: "ppocr-v6" | "tesseract"; keyReviewNote?: string; encodedOriginals?: Array<{encoded:string;original:string}> }
 export interface Ocr { recognize(png: Uint8Array, signal: AbortSignal): Promise<OcrResult> }

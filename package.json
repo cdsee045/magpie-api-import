@@ -1,11 +1,19 @@
 {
   "name": "magpie-api-import",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "private": true,
   "description": "Import and verify API accounts through Magpie's official plugin sign-in hooks",
   "type": "module",
   "main": "./index.ts",
-  "files": ["index.ts", "src", "ui", "vendor", "README.md", "docs", "integration"],
+  "files": [
+    "index.ts",
+    "src",
+    "ui",
+    "vendor",
+    "README.md",
+    "docs",
+    "integration"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
@@ -19,15 +27,49 @@
     "dev": "npm run build && node scripts/dev.mjs",
     "pack:check": "npm pack --dry-run"
   },
-  "engines": { "bun": ">=1.3.0" },
-  "keywords": ["magpie", "opencode", "opencode-plugin", "api-import"],
-  "repository": { "type": "git", "url": "git+https://github.com/cdsee045/magpie-api-import.git" },
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "keywords": [
+    "magpie",
+    "opencode",
+    "opencode-plugin",
+    "api-import"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdsee045/magpie-api-import.git"
+  },
   "magpie": {
     "name": "API 导入",
-    "summary": { "en": "Paste API text or screenshots, verify a model, and save through Magpie plugin sign-in.", "zh": "主动粘贴文字或截图，本地识别并验证，通过官方插件登录保存 API 账号。" },
-    "page": { "file": "ui/compatibility.html", "title": "API 导入说明" },
-    "panels": [{ "slot": "settings", "file": "ui/compatibility.html", "title": "API 导入使用说明" }]
+    "summary": {
+      "en": "Paste API text or screenshots, verify a model, and save through Magpie plugin sign-in.",
+      "zh": "主动粘贴文字或截图，本地识别并验证，通过官方插件登录保存 API 账号。"
+    },
+    "page": {
+      "file": "ui/compatibility.html",
+      "title": "API 导入说明"
+    },
+    "panels": [
+      {
+        "slot": "settings",
+        "file": "ui/compatibility.html",
+        "title": "API 导入使用说明"
+      }
+    ]
   },
-  "dependencies": { "tesseract.js": "^6.0.1", "@tesseract.js-data/eng": "^1.0.0", "@tesseract.js-data/chi_sim": "^1.0.0" },
-  "devDependencies": { "@types/bun": "^1.3.0", "typescript": "^5.9.3", "esbuild": "^0.27.0", "bun": "^1.3.0", "@playwright/test": "^1.56.1" }
+  "dependencies": {
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "pngjs": "7.0.0",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/bun": "^1.3.0",
+    "bun": "^1.3.0",
+    "esbuild": "^0.27.0",
+    "onnxruntime-web": "1.31.1",
+    "typescript": "^5.9.3"
+  }
 }

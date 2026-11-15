@@ -61,6 +61,19 @@ describe("official Magpie provider hooks", () => {
 });
 
 describe("explicit, short-lived browser import", () => {
+  test('an inferred encoding keeps its original private and cannot validate before review',async()=>{
+    const encoded=Buffer.from(candidate.key).toString('base64'),original='original_OCR_fixture_not_a_key';let requests=0;
+    const flow=await startBrowserFlow({ocr:{async recognize(){return{text:JSON.stringify({...candidate,keyBase64:encoded,key:undefined}),keyReviewRequired:true,keyReviewNote:'相似字形待核对',encodedOriginals:[{encoded,original}]};}},validator:{async models(){requests++;return[];},async validate(c){requests++;return receipt(c);}}});
+    try{
+      await flowCall(flow.url,'input',{kind:'image',png:Buffer.from('fixture').toString('base64')});await flowCall(flow.url,'command',{type:'detect'});
+      const current=await state(flow.url);expect(current.candidates[0]?.hasEncodedOriginal).toBe(true);expect(current.candidates[0]?.keyReviewNote).toContain('待核对');
+      for(const secret of [encoded,original,candidate.key])expect(JSON.stringify(current)).not.toContain(secret);
+      expect((await(await flowCall(flow.url,'encoded-key',{original:true})).json()).encoded).toBe(original);
+      await flowCall(flow.url,'command',{type:'verify'});expect(requests).toBe(0);
+      await flowCall(flow.url,'command',{type:'decode',encoded});expect((await state(flow.url)).candidates[0]?.hasEncodedOriginal).toBe(false);
+      await flowCall(flow.url,'suspend',{});expect((await flowCall(flow.url,'encoded-key',{original:true})).status).toBe(409);
+    }finally{await flow.close();}
+  });
   test("encoded credentials are private, editable and revoked on navigation", async () => {
     let validates = 0, lists = 0;
     const encoded = Buffer.from(candidate.key).toString("base64");

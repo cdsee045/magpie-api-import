@@ -37,7 +37,7 @@ export function candidateIssues(candidate: Candidate, requireModel = true): stri
   const key = keyIssue(candidate.key); if (key) issues.push(key);
   if (requireModel && (!candidate.model.trim() || candidate.model.length > 200 || /[\u0000-\u001f]/.test(candidate.model))) issues.push("请选择或填写要验证的模型。");
   if (candidate.protocol !== "chat-completions") issues.push("首版仅支持 Chat Completions，请核对接口协议。");
-  if (candidate.needsKeyReview) issues.push("识别的 Key 需要核对后确认，插件不会猜测字符。");
+  if (candidate.needsKeyReview) issues.push("识别的 Key 需要核对后确认，核对前不会发送请求。");
   return issues;
 }
 export function publicError(error: unknown): string {

@@ -38,6 +38,7 @@
     }
   }
   function render(next) {
+    const previous = state;
     state = next;
     $('auto').checked = next.auto;
     $('detect').disabled = busy();
@@ -57,9 +58,12 @@
         urlPicker.value = urls.includes(c.url) ? c.url : '';
       }
       $('masked-key').textContent = '当前 Key：' + c.maskedKey;
+      if ($('key-recognition-note')) { $('key-recognition-note').hidden = !c.keyReviewNote; $('key-recognition-note').textContent = c.keyReviewNote || ''; }
       if ($('encoded-wrap')) $('encoded-wrap').hidden = !c.hasEncodedKey;
+      if ($('encoded-original')) $('encoded-original').hidden = !c.hasEncodedOriginal;
       $('review-wrap').hidden = !c.needsKeyReview;
-      if (!c.needsKeyReview) $('review').checked = false;
+      const prior = previous?.candidates[previous.selected];
+      if (c.needsKeyReview && (!prior?.needsKeyReview || previous.selected !== next.selected || prior.maskedKey !== c.maskedKey)) $('review').checked = false;
       $('models').replaceChildren(...c.models.map(model => { const option = document.createElement('option'); option.value = model; return option; }));
       const picker = $('model-picker');
       if (picker) {
@@ -107,6 +111,11 @@
     catch { notice('无法读取编码，请重新检测。'); }
   };
   if ($('decode-key')) $('decode-key').onclick = () => send({type:'decode',encoded:$('encoded-key').value});
+  if ($('encoded-original')) $('encoded-original').onclick = async () => {
+    const version = encodedVersion;
+    try { const encoded = await api.revealEncodedOriginal(); if (version !== encodedVersion || document.hidden || !state?.active) return; $('encoded-key').value = encoded; notice('已显示原始 OCR 结果；尚未替换当前 Key，点击“在本机重新解码”才会应用。'); }
+    catch { notice('无法读取原始 OCR 结果，请重新识别。'); }
+  };
   if ($('url-picker')) $('url-picker').onchange = event => {
     if (!event.target.value) return;
     $('url').value = event.target.value;

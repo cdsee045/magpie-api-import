@@ -4,6 +4,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { _internal } from '../dist/plugin.mjs';
 import { keys as sharedKeys } from './fixtures/shared-api.mjs';
+import {keys as forumKeys,urls as forumUrls,models as forumModels} from './fixtures/forum-api.mjs';
 
 const fixture = { name: '我的测试 API', key: 'fixture_browser_key_123456789', model: 'fixture-model' };
 let calls = 0, delay = 0, failureStatus = 0, stallBody = false, paths = [], authorizations = [];
@@ -27,14 +28,34 @@ const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIG
 const errors = [], flows = [];
 let checks = 0;
 await mkdir('artifacts/official-ui', { recursive: true });
-async function fresh(width = 1100, colorScheme = 'light') {
-  const flow = await _internal.startBrowserFlow(); flows.push(flow);
+async function fresh(width = 1100, colorScheme = 'light', options = {}) {
+  const flow = await _internal.startBrowserFlow(options); flows.push(flow);
   const context = await browser.newContext({ viewport: { width, height: 1100 }, colorScheme });
   const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
   await page.goto(flow.url); return { flow, page, context };
 }
 async function paste(page, data) { await page.locator('#input-text').fill(typeof data === 'string' ? data : JSON.stringify(data)); await page.locator('#parse-input').click(); }
 try {
+  {
+    let upstream=0;
+    const {page,context}=await fresh(1100,'light',{validator:{async models(){upstream++;throw Error('unexpected request');},async validate(){upstream++;throw Error('unexpected request');}}});
+    await page.locator('#image-file').setInputFiles('tests/fixtures/forum-light.png');await page.locator('#parse-input').click();
+    await expect(page.locator('#choices button')).toHaveCount(3,{timeout:60000});
+    for(let index=0;index<3;index++){
+      await page.locator('#choices button').nth(index).click();
+      await expect(page.locator('#name')).toHaveValue(`Key ${index+1}`);await expect(page.locator('#url')).toHaveValue(forumUrls[0]);
+      await expect(page.locator('#model')).toHaveValue(forumModels[index][0]);
+      assert.deepEqual(await page.locator('#model-picker option').evaluateAll(items=>items.map(x=>x.value).filter(Boolean)),forumModels[index]);
+      assert.equal(await page.evaluate(()=>globalThis.apiImport.revealKey()),forumKeys[index]);
+      await expect(page.locator('#masked-key')).not.toContainText('未提供');
+      const state=await page.evaluate(()=>fetch(new URL('state',location.href),{headers:{'X-API-Import':'1'}}).then(r=>r.json()));
+      assert.ok(state.candidates.every(c=>!('key'in c)&&!('encodedKey'in c)&&!('encodedKeyOriginal'in c)));
+      assert.ok(!JSON.stringify(state).includes(forumKeys[index]));
+      await page.locator('#validate').click();await expect(page.locator('#validation-status')).toContainText('需要核对');
+      assert.equal(upstream,0);checks+=3;
+    }
+    await page.screenshot({path:'artifacts/official-ui/automatic-forum-fields.png',fullPage:true});await context.close();
+  }
   // Exercise the viewport where users actually press Validate, including
   // terminal failures, missing fields, stalled responses and a safe retry.
   for (const status of [401, 404, 429, 500]) {
@@ -226,7 +247,7 @@ try {
     await expect(page.locator('#choices button').nth(1)).toBeEnabled();
     await page.locator('#validate').click(); await expect(page.locator('#choices button').nth(1)).toBeEnabled(); checks++;
     await page.locator('#choices button').nth(1).click(); await expect(page.locator('#url-picker')).toBeVisible();
-    await expect(page.locator('#url')).toHaveValue('');
+    await expect(page.locator('#url')).toHaveValue('https://api.example.test');
     await page.locator('#url-picker').selectOption('https://cdn.example.test');
     await expect(page.locator('#url')).toHaveValue('https://cdn.example.test');
     assert.equal(paths.length,pathCount); checks++;

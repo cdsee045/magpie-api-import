@@ -10,15 +10,16 @@ describe("recognition", () => {
     expect(candidates).toHaveLength(3);
     for (const [i, c] of candidates.entries()) {
       expect(c.name).toBe(`Key ${i + 1}`); expect(c.key).toBe(sharedKeys[i]!);
-      expect(c.models).toEqual(sharedModels[i]!); expect(c.url).toBe("");
+      expect(c.models).toEqual(sharedModels[i]!); expect(c.url).toBe(sharedUrls[0]!);
       expect(c.urlOptions).toEqual(sharedUrls); expect(c.needsKeyReview).toBe(true);
     }
+    expect(parseText(sharedText()).candidates.every(c=>!c.url)).toBe(true);
   });
   test("OCR URL icons/labels and whitespace in explicit encoded blocks are supported", () => {
     const text = sharedText().replace("url: ↗", "urlLZ").replace("url（CDN加速）： ↗", "url (CDN 加 速 ) : 四").replace("key2(BASE64):", "API Key 2（ BASE64 ）：").replace(/(c2st\w{12})/g, "$1 ");
     const { candidates } = parseText(text, true);
     expect(candidates.map(c => c.key)).toEqual(sharedKeys);
-    expect(candidates.every(c => c.urlOptions?.length === 2 && !c.url)).toBe(true);
+    expect(candidates.every(c => c.urlOptions?.length === 2 && c.url === sharedUrls[0])).toBe(true);
   });
   test("failed OCR Base64 remains editable without inventing a decoded credential", () => {
     const { candidates, issues } = parseText(sharedText().replace(/c2st/g, "c2st%%%").replace(/可用模型:.*/g, "可用模型: same-model"), true);
@@ -119,7 +120,7 @@ describe("recognition", () => {
       expect(issues).toEqual([]);
       expect(candidates).toHaveLength(1);
       expect(candidates[0]).toMatchObject({ name: "我的 API", url: "https://api.example.test", key: fixtureKey, model: "", needsKeyReview: true });
-      expect(candidateIssues(candidates[0]!, false)).toEqual(["识别的 Key 需要核对后确认，插件不会猜测字符。"]);
+      expect(candidateIssues(candidates[0]!, false)).toEqual(["识别的 Key 需要核对后确认，核对前不会发送请求。"]);
     }
   });
   test("unlabelled encoded keys share their URL without changing explicit literal keys", () => {
@@ -164,6 +165,8 @@ describe("recognition", () => {
   test("ambiguous addresses are never paired with a guessed URL", () => {
     const { candidates } = parseText(`https://a.example.test/v1 or https://b.example.test/v1\nkey: ${key}`);
     expect(candidates[0]?.url).toBe("");
+    const image=parseText(`https://a.example.test/v1\nhttps://cdn.other-provider.test/v1\nkey: ${key}`,true);
+    expect(image.candidates[0]?.url).toBe("");
   });
   test("recognition is bounded and does not execute clipboard text", () => {
     expect(() => parseText("x".repeat(1_048_577))).toThrow();

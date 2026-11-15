@@ -86,6 +86,11 @@ describe("page-scoped import lifecycle", () => {
     const { engine } = setup({ clipboard: { kind: "text", text: JSON.stringify({ ...candidate, model: "", models: [] }) } });
     await engine.setPage("providers/custom/new"); await engine.loadModels(); expect(engine.snapshot().status).toBe("incomplete"); expect(await engine.confirm()).toBe(false);
   });
+  test('a screenshot model absent from the fetched list must be reselected before verification',async()=>{
+    const {engine,counts}=setup();await engine.setPage('providers/custom/new');engine.edit({model:'advertised-alias'});
+    const before=counts.validates;await engine.loadModels();expect(engine.snapshot().candidates[0]?.model).toBe('');expect(engine.snapshot().message).toContain('原模型 ID 不在返回列表');
+    await engine.verify();expect(counts.validates).toBe(before);engine.dispose();
+  });
   test("a New API connection without a model discovers the list but never guesses or makes a paid call", async () => {
     let lists = 0;
     const { engine, counts } = setup({ clipboard: { kind: "text", text: JSON.stringify({ _type: "newapi_channel_conn", url: "https://api.example.test", key: candidate.key }) }, models: async c => { lists++; expect(c.url).toBe("https://api.example.test/v1"); return ["one", "two"]; } });

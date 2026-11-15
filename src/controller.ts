@@ -24,7 +24,7 @@ export class ImportController {
     const chosen = this.candidates[this.selected];
     return {
       status: this.status, message: this.message, auto: this.auto, active: this.active,
-      candidates: this.candidates.map(({ key, encodedKey, ...c }) => ({ ...c, ...(c.urlOptions ? { urlOptions: [...c.urlOptions] } : {}), models: [...c.models], maskedKey: maskKey(key), hasEncodedKey: !!encodedKey })), selected: this.selected,
+      candidates: this.candidates.map(({ key, encodedKey, encodedKeyOriginal, ...c }) => ({ ...c, ...(c.urlOptions ? { urlOptions: [...c.urlOptions] } : {}), models: [...c.models], maskedKey: maskKey(key), hasEncodedKey: !!encodedKey, hasEncodedOriginal:!!encodedKeyOriginal })), selected: this.selected,
       confirmation: this.active && this.status === "verified" && chosen && this.receipt ? {
         name: chosen.name, domain: new URL(chosen.url).host, maskedKey: maskKey(chosen.key), protocol: "Chat Completions", model: this.receipt.model,
       } : null,
@@ -32,7 +32,7 @@ export class ImportController {
   }
   subscribe(listener: (state: ViewState) => void): () => void { this.listeners.add(listener); listener(this.snapshot()); return () => this.listeners.delete(listener); }
   revealKey(): string { return this.active && !this.disposed ? this.candidates[this.selected]?.key ?? "" : ""; }
-  revealEncodedKey(): string { return this.active && !this.disposed ? this.candidates[this.selected]?.encodedKey ?? "" : ""; }
+  revealEncodedKey(original = false): string { const chosen = this.candidates[this.selected]; return this.active && !this.disposed ? (original ? chosen?.encodedKeyOriginal : chosen?.encodedKey) ?? "" : ""; }
   private emit(): void { const state = this.snapshot(); for (const listener of this.listeners) { try { listener(state); } catch { /* UI errors must not expose raw controller data. */ } } }
   private update(status: Status, message = ""): void { this.status = status; this.message = message; this.emit(); }
   private cancel(): number { this.running.abort(); this.running = new AbortController(); this.receipt = null; return ++this.sequence; }
@@ -74,17 +74,22 @@ export class ImportController {
       if (clipboard.kind === "empty") { this.update("idle"); return; }
       const hash = digest(clipboard.kind === "text" ? `text:${clipboard.text}` : clipboard.png);
       if (!manual && this.remembered(this.seen, hash)) { this.update("dismissed", "该内容已检测过；可手动重新检测。"); return; }
-      let text: string, image = false;
+      let text: string, image = false, keyReviewNote: string | undefined, encodedOriginals = new Map<string,string>();
       if (clipboard.kind === "image") {
         const result = await this.ocr.recognize(clipboard.png, signal);
         if (!this.live(seq)) return;
-        text = result.text; image = true;
+        text = result.text; image = true; keyReviewNote = result.keyReviewNote;
+        encodedOriginals = new Map(result.encodedOriginals?.map(item => [item.encoded,item.original]));
       } else text = clipboard.text;
       clipboard = { kind: "empty" };
       const result = parseText(text, image);
       text = "";
       if (!this.live(seq)) return;
       this.candidates = result.candidates;
+      if (keyReviewNote) for (const candidate of this.candidates) {
+        if (!encodedOriginals.size || (candidate.encodedKey && encodedOriginals.has(candidate.encodedKey))) candidate.keyReviewNote = keyReviewNote;
+        if (candidate.encodedKey && encodedOriginals.has(candidate.encodedKey)) candidate.encodedKeyOriginal = encodedOriginals.get(candidate.encodedKey);
+      }
       if (result.candidates.length || result.issues.length) this.remember(this.seen, hash);
       if (!this.candidates.length) { this.update(result.issues.length ? "incomplete" : "idle", result.issues.join(" ")); return; }
       if (this.candidates.length > 1) { this.update("selecting", `识别到 ${this.candidates.length} 条配置，请选择一条验证并导入。`); return; }
@@ -109,6 +114,7 @@ export class ImportController {
     let chosen = this.candidates[this.selected];
     if (!chosen) { chosen = { name: "我的 API", url: "", key: "", protocol: "chat-completions", model: "", models: [], needsKeyReview: false }; this.candidates = [chosen]; this.selected = 0; }
     Object.assign(chosen, changes);
+    if (changes.key) delete chosen.keyReviewNote;
     if (reviewed) chosen.needsKeyReview = false;
     this.update("incomplete", "配置已修改，请重新验证。验证可能产生少量费用。");
   }
@@ -116,6 +122,8 @@ export class ImportController {
     const chosen = this.candidates[this.selected];
     if (!this.active || !chosen || this.status === "saving") return;
     this.cancel(); chosen.encodedKey = encoded.replace(/\s+/g, ""); chosen.key = ""; chosen.needsKeyReview = true;
+    delete chosen.keyReviewNote;
+    delete chosen.encodedKeyOriginal;
     try {
       chosen.key = decodeBase64Key(chosen.encodedKey);
       this.update("review", "已在本机重新解码。请核对完整 Key 和对应地址，勾选确认后再验证。");
@@ -132,7 +140,9 @@ export class ImportController {
       const models = await this.validator.models({ ...chosen }, signal);
       if (!this.live(seq)) return;
       chosen.models = models;
-      this.update("incomplete", models.length ? `地址和 Key 已识别，已获取 ${models.length} 个模型；请选择一个模型，再进行真实调用验证。` : "地址和 Key 已识别，但未获取到模型；请手动填写接口支持的模型 ID。");
+      const missing = !!chosen.model && models.length > 0 && !models.includes(chosen.model);
+      if (missing) chosen.model = "";
+      this.update("incomplete", models.length ? `地址和 Key 已识别，已获取 ${models.length} 个模型；${missing ? "原模型 ID 不在返回列表中，请重新选择或手动核对。" : "请选择一个模型，再进行真实调用验证。"}` : "地址和 Key 已识别，但未获取到模型；请手动填写接口支持的模型 ID。");
     } catch (error) { if (this.live(seq)) this.update("failed", publicError(error)); }
   }
   async verify(manual = true): Promise<void> {

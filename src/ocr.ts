@@ -1,13 +1,11 @@
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { ImportError, abortIfNeeded } from "./security.ts";
 import type { Ocr, OcrResult } from "./types.ts";
 
-const require = createRequire(import.meta.url);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 export class LocalOcr implements Ocr {
   async recognize(png: Uint8Array, signal: AbortSignal): Promise<OcrResult> {
@@ -20,7 +18,6 @@ export class LocalOcr implements Ocr {
     // image/text/key data stays in memory and the child's private stdin/stdout.
     const langPath = await mkdtemp(path.join(tmpdir(), "magpie-import-tessdata-"));
     try {
-      await Promise.all(["eng", "chi_sim"].map(code => copyFile(path.join(path.dirname(require.resolve(`@tesseract.js-data/${code}/package.json`)), "4.0.0_best_int", `${code}.traineddata.gz`), path.join(langPath, `${code}.traineddata.gz`))));
       abortIfNeeded(signal);
       const workerPath = fileURLToPath(new URL("../src/ocr-worker.mjs", import.meta.url));
       const result = await new Promise<OcrResult>((resolve, reject) => {
@@ -40,7 +37,8 @@ export class LocalOcr implements Ocr {
           try {
             const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
             if (typeof data.text !== "string") throw new Error();
-            resolve({ text: data.text, keyReviewRequired: true });
+            const encodedOriginals = Array.isArray(data.encodedOriginals) ? data.encodedOriginals.slice(0,50).filter((item:unknown):item is {encoded:string;original:string} => !!item && typeof item === "object" && typeof (item as {encoded?:unknown}).encoded === "string" && typeof (item as {original?:unknown}).original === "string" && (item as {encoded:string}).encoded.length <= 11000 && (item as {original:string}).original.length <= 11000) : [];
+            resolve({ text: data.text, keyReviewRequired: true, engine: data.engine === "ppocr-v6" ? "ppocr-v6" : "tesseract", encodedOriginals, ...(typeof data.keyReviewNote === "string" ? {keyReviewNote:data.keyReviewNote.slice(0,400)} : {}) });
           } catch { reject(new ImportError("OCR", "本地截图识别失败，请复制文字重试。")); }
         });
         child.stdin.end(png);

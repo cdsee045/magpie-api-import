@@ -1,0 +1,13 @@
+{
+  "model": "PP-OCRv6_rec_small",
+  "modelSource": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv6/rec/PP-OCRv6_rec_small.onnx",
+  "modelLicense": "Apache-2.0",
+  "runtime": "onnxruntime-web@1.31.1",
+  "runtimeLicense": "MIT",
+  "assets": {
+    "recognizer.onnx": "6f327246b50388f3c176ae304bd95767ea6dc0c9ae92153ef8cbe210b3c14884",
+    "runtime.mjs": "c322ce3fccfd47623788a709f04beef244ad1bdf7393e5a72764778e6910a349",
+    "ort-wasm-simd-threaded.mjs": "30ed0b5cd1182ede931fea448afb567d4dc705ec957af09f108a2be5f770dac3",
+    "ort-wasm-simd-threaded.wasm": "4b884c203b0fa48d057be3332c65513ff85aa3c5bddd6946acc0fab7ecda001d"
+  }
+}

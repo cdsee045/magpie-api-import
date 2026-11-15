@@ -32,6 +32,7 @@
     async command(command) { await call('command', command); await poll(true); },
     async revealKey() { return (await call('key', {})).key; },
     async revealEncodedKey() { return (await call('encoded-key', {})).encoded; },
+    async revealEncodedOriginal() { return (await call('encoded-key', {original:true})).encoded; },
     subscribe(listener) { listeners.add(listener); if (last) listener(JSON.parse(last)); backgroundPoll(); timer ??= setInterval(backgroundPoll, 300); return () => listeners.delete(listener); },
   };
   function selectImage(file) {

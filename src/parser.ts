@@ -108,11 +108,13 @@ export function parseText(text: string, image = false): Recognition {
     let pendingName = "";
     let pendingKey = "";
     let sharedUrls: string[] = [];
+    let mainUrls: string[] = [], hasAlias = false;
+    const primaryUrl = () => image && hasAlias && mainUrls.length === 1 ? mainUrls[0]! : sharedUrls.length === 1 ? sharedUrls[0]! : "";
     let review = false;
     let seenKey = false;
     function flush(): void {
       if (Object.keys(current).length) {
-        records.push({ record: current, inherited: { ...global, ...(sharedUrls.length ? { url: sharedUrls.length === 1 ? sharedUrls[0] : "" } : {}) }, review, urls: sharedUrls.length > 1 ? [...sharedUrls] : undefined });
+        records.push({ record: current, inherited: { ...global, ...(sharedUrls.length ? { url: primaryUrl() } : {}) }, review, urls: sharedUrls.length > 1 ? [...sharedUrls] : undefined });
         current = {}; review = false;
       }
     }
@@ -123,15 +125,16 @@ export function parseText(text: string, image = false): Recognition {
       if (pendingName && current.name === undefined) current.name = pendingName;
       pendingName = ""; seenKey = true; review = inferred;
     }
-    function urlLine(value: string): void {
-      if (seenKey) { flush(); seenKey = false; sharedUrls = []; }
+    function urlLine(value: string, alias = false): void {
+      if (seenKey) { flush(); seenKey = false; sharedUrls = []; mainUrls = []; hasAlias = false; }
       const foundUrls = urlsIn(value);
       // Separate an inline credential before URL normalization, which would
       // otherwise percent-encode the space and put the credential in the path.
       if (foundUrls.length !== 1) { current.url = foundUrls.length ? "" : value; sharedUrls = []; return; }
       const url = foundUrls[0]!;
       sharedUrls = [...new Set([...sharedUrls, url])].slice(0, 20);
-      current.url = sharedUrls.length === 1 ? url : "";
+      if (alias) hasAlias = true; else mainUrls = [...new Set([...mainUrls, url])];
+      current.url = primaryUrl();
       const rest = value.slice(value.indexOf(url) + url.length).trim().split(/\s+/);
       for (const part of rest) {
         const found = bareKey(part, true);
@@ -157,7 +160,7 @@ export function parseText(text: string, image = false): Recognition {
         // A new field/heading ends the missing value; do not consume it as a Key.
         pendingKey = "";
       }
-      if (/^https?:\/\//.test(line) || (image && /^url/i.test(line) && urlsIn(line).length === 1)) { urlLine(line); continue; }
+      if (/^https?:\/\//.test(line) || (image && /^url/i.test(line) && urlsIn(line).length === 1)) { urlLine(line, /cdn|加速|备用/i.test(line.slice(0,Math.max(0,line.search(/https?:\/\//i))))); continue; }
       const found = bareKey(line, !!(sharedUrls.length || global.url));
       if (found) { appendKey(found.field, found.value, found.review); continue; }
       const match = line.match(/^([^:：=]{1,60})\s*[:：=]\s*(.*?)\s*$/);
@@ -167,9 +170,9 @@ export function parseText(text: string, image = false): Recognition {
         const key = keyLabel(label);
         if (key) {
           appendKey(key.field, key.field.endsWith("base64") ? value.replace(/\s+/g, "") : value);
-          if (key.name && current.name === undefined) current.name = key.name;
+          if (key.name) current.name = key.name;
         } else if (urlLabel(label)) {
-          urlLine(value);
+          urlLine(value, /cdn|加速|备用/i.test(label));
         } else if (["name", "名称", "供应商"].includes(label)) {
           if (seenKey) { flush(); seenKey = false; }
           current.name = value;

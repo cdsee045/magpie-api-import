@@ -20,7 +20,7 @@ for (const name of Object.keys(env)) if (/^(?:GH_TOKEN|GH_ENTERPRISE_TOKEN|GITHU
 async function run(args) {
   await new Promise((resolve, reject) => {
     const child = spawn(bun, args, { cwd: directory, env, stdio: 'inherit', windowsHide: true });
-    const timeout = setTimeout(() => child.kill(), 180_000);
+    const timeout = setTimeout(() => child.kill(), 300_000);
     child.once('error', error => { clearTimeout(timeout); reject(error); });
     child.once('close', code => { clearTimeout(timeout); code === 0 ? resolve() : reject(new Error(`GitHub installation check exited with status ${code}`)); });
   });
@@ -30,6 +30,7 @@ await run(['add', '--ignore-scripts', '--no-progress', '--cache-dir', cache, spe
 const probe = `
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { readFile, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 const mod = await import('magpie-api-import');
@@ -46,6 +47,7 @@ for (const panel of pkg.magpie.panels) assert.ok((await stat(path.join(packagePa
 assert.ok((await stat(path.join(packagePath,pkg.magpie.page.file))).isFile());
 for (const file of ['official.html','local-bridge.js','import.js']) assert.ok((await stat(path.join(packagePath,'ui',file))).isFile());
 assert.ok((await stat(path.join(packagePath,'src/ocr-worker.mjs'))).isFile());
+for(const file of ['recognizer.onnx','runtime.mjs','ort-wasm-simd-threaded.mjs','ort-wasm-simd-threaded.wasm','manifest.json'])assert.ok((await stat(path.join(packagePath,'vendor/ocr',file))).size>0);
 const core = path.dirname(require.resolve('tesseract.js-core/package.json'));
 assert.ok((await stat(path.join(core,'tesseract-core-simd-lstm.wasm'))).size > 0);
 for (const language of ['eng','chi_sim']) {
@@ -53,6 +55,8 @@ for (const language of ['eng','chi_sim']) {
   assert.ok((await stat(data)).size > 0);
 }
 const image = await readFile(${JSON.stringify(path.join(root, 'tests', 'fixtures', 'api-screenshot.png'))});
+const {LocalOcr}=await import(pathToFileURL(path.join(packagePath,'src/ocr.ts')).href);
+assert.equal((await new LocalOcr().recognize(image,new AbortController().signal)).engine,'ppocr-v6');
 let flow;
 try {
   flow=await mod._internal.startBrowserFlow();
@@ -63,6 +67,7 @@ try {
   await call('input',{kind:'image',png:image.toString('base64')});
   await call('command',{type:'detect'});
   assert.equal((await call('state')).status,'review');
+  assert.equal((await call('key',{})).key,'fixture_test_ABCD1234567890');
   await call('cancel',{});assert.equal((await flow.result).type,'failed');
 } finally {await flow?.close();}
 console.log(JSON.stringify({result:'PASS',spec:${JSON.stringify(spec)},version:pkg.version,entryLoaded:true,panelFilesPresent:true,localOcrFilesPresent:true,installedPackageOcrPassed:true,githubAuthentication:false},null,2));

@@ -28,7 +28,7 @@ export interface ImportSession {
   subscribe(listener: (state: ViewState) => void): () => void;
   command(command: Command): Promise<void>;
   revealKey(): string;
-  revealEncodedKey(): string;
+  revealEncodedKey(original?:boolean): string;
   dispose(): void;
 }
 
@@ -108,7 +108,7 @@ export function createSession(native: NativeHost, deps: { validator?: Validator;
       }
     },
     revealKey() { assertPage(); return controller.revealKey(); },
-    revealEncodedKey() { assertPage(); return controller.revealEncodedKey(); },
+    revealEncodedKey(original=false) { assertPage(); return controller.revealEncodedKey(original); },
     dispose() { closed = true; active = false; receipts.clear(); off(); controller.dispose(); },
   };
 }
