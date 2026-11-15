@@ -5,10 +5,12 @@ import assert from 'node:assert/strict';
 import { _internal } from '../dist/plugin.mjs';
 
 const fixture = { name: '我的测试 API', key: 'fixture_browser_key_123456789', model: 'fixture-model' };
-let calls = 0, delay = 0;
+let calls = 0, delay = 0, paths = [];
 const api = createServer(async (req, res) => {
   let body = ''; for await (const chunk of req) body += chunk;
-  if (req.url.endsWith('/models')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ data: [{ id: 'fixture-model' }] })); return; }
+  paths.push(req.url);
+  if (req.url === '/v1/models') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ data: [{ id: 'fixture-model' }] })); return; }
+  if (req.url.endsWith('/models')) { res.statusCode = 404; res.end('Not found'); return; }
   calls++; if (delay) await new Promise(resolve => setTimeout(resolve, delay));
   res.setHeader('Content-Type', 'application/json');
   if (req.headers.authorization?.includes('invalid')) { res.statusCode = 401; res.end(JSON.stringify({ error: { message: fixture.key } })); return; }
@@ -47,6 +49,18 @@ try {
     await page.locator('#key').fill(fixture.key); await page.locator('#validate').click();
     await page.locator('#confirmation').waitFor({ state: 'visible' }); await page.keyboard.press('Escape');
     await expect(page.locator('#confirmation')).not.toBeVisible(); checks++;
+    await context.close();
+  }
+  {
+    const { page, context } = await fresh(); const before = calls, pathCount = paths.length;
+    await paste(page, { _type: 'newapi_channel_conn', url: new URL(fixture.url).origin, key: fixture.key });
+    await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await expect(page.locator('#url')).toHaveValue(fixture.url); await expect(page.locator('#model')).toHaveValue('');
+    await expect(page.locator('#model-picker')).toBeVisible();
+    assert.equal(calls, before); assert.deepEqual(paths.slice(pathCount), ['/v1/models']); checks += 2;
+    await page.locator('#model-picker').selectOption(fixture.model); await page.locator('#validate').click();
+    await page.locator('#confirmation').waitFor({ state: 'visible' }); assert.equal(calls, before + 1); checks++;
+    await page.screenshot({ path: 'artifacts/official-ui/newapi.png', fullPage: true });
     await context.close();
   }
   {

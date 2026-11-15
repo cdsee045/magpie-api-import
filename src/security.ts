@@ -29,12 +29,12 @@ export function keyIssue(key: string): string | null {
   if (/\*|…|•|<[^>]+>|your[_-]?(?:api[_-]?)?key|xxxxx/i.test(key)) return "Key 被遮挡或是占位内容，请填写完整 Key。";
   return null;
 }
-export function candidateIssues(candidate: Candidate): string[] {
+export function candidateIssues(candidate: Candidate, requireModel = true): string[] {
   const issues: string[] = [];
   if (!candidate.name.trim() || candidate.name.length > 100) issues.push("请填写 1–100 个字符的供应商名称。");
   try { normalizeUrl(candidate.url); } catch (e) { issues.push((e as Error).message); }
   const key = keyIssue(candidate.key); if (key) issues.push(key);
-  if (!candidate.model.trim() || candidate.model.length > 200 || /[\u0000-\u001f]/.test(candidate.model)) issues.push("请选择或填写要验证的模型。");
+  if (requireModel && (!candidate.model.trim() || candidate.model.length > 200 || /[\u0000-\u001f]/.test(candidate.model))) issues.push("请选择或填写要验证的模型。");
   if (candidate.protocol !== "chat-completions") issues.push("首版仅支持 Chat Completions，请核对接口协议。");
   if (candidate.needsKeyReview) issues.push("截图识别的 Key 需要核对后确认，插件不会猜测字符。");
   return issues;

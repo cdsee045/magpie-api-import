@@ -11,6 +11,7 @@ const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req): Pro
   if (url.pathname.startsWith("/slow")) { await Bun.sleep(100); return Response.json({}); }
   if (url.pathname.startsWith("/fake")) return Response.json({ data: [{ id: "one" }] });
   if (url.pathname.startsWith("/huge")) return new Response(' '.repeat(262_145));
+  if (url.pathname.startsWith("/missing")) return new Response("Not found", { status: 404 });
   if (url.pathname.endsWith("/models")) return Response.json({ data: [{ id: "one" }, { id: "two" }] });
   return Response.json({ choices: [{ message: { role: "assistant", content: "OK" } }], usage: { completion_tokens: 1 } });
 } });
@@ -30,6 +31,10 @@ describe("real HTTP verification", () => {
   });
   test("rejects auth failure without propagating server error contents", async () => {
     await expect(new HttpValidator().validate(make("unauthorized/"), new AbortController().signal)).rejects.toMatchObject({ code: "AUTH" });
+  });
+  test("a missing model-list path suggests the base address and is distinguished from generation failure", async () => {
+    await expect(new HttpValidator().models(make("missing/"), new AbortController().signal)).rejects.toMatchObject({ code: "NOT_FOUND", message: expect.stringContaining("模型列表接口") });
+    await expect(new HttpValidator().validate(make("missing/"), new AbortController().signal)).rejects.toMatchObject({ code: "NOT_FOUND", message: expect.stringContaining("接口路径或模型不存在") });
   });
   test("refuses redirects without sending credentials to the target", async () => {
     const start = calls.length;

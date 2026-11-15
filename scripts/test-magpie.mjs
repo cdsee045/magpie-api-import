@@ -38,9 +38,12 @@ assert.ok(hostName, 'official binary must have extracted its own host');
 const authPath = path.join(directory, 'config/magpie/plugin-auth.json');
 const unrelated = { type: 'api', key: 'fixture_existing_unrelated_key_123456789' };
 await writeFile(authPath, JSON.stringify({ unrelated }));
-let calls = 0;
+let calls = 0, modelLists = 0;
 const api = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
+  if (req.method === 'GET' && req.url === '/v1/models') {
+    modelLists++; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ data: [{ id: 'fixture-model' }] })); return;
+  }
   const body = JSON.parse(raw); assert.equal(body.model, 'fixture-model');
   assert.equal(req.headers.authorization, 'Bearer fixture_official_key_123456789'); calls++;
   res.setHeader('Content-Type', 'application/json');
@@ -75,12 +78,21 @@ async function call(url, part, body) {
   const response = await fetch(new URL(part, url), { method: 'POST', headers: { Origin: new URL(url).origin, 'X-API-Import': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   assert.equal(response.status, 200); return response.json();
 }
-async function importOne() {
+async function importOne(connectionOnly = false) {
   const login = await ask('authorize', { provider: 'api-import', method: 0 });
   assert.equal(login.ok, true); assert.ok(login.url.startsWith('http://127.0.0.1:'));
   const completed = ask('callback', { session: login.session });
-  await call(login.url, 'input', { kind: 'text', text: JSON.stringify(candidate) });
+  const input = connectionOnly ? { _type: 'newapi_channel_conn', url: new URL(baseURL).origin, key: candidate.key } : candidate;
+  await call(login.url, 'input', { kind: 'text', text: JSON.stringify(input) });
   await call(login.url, 'command', { type: 'detect' });
+  if (connectionOnly) {
+    const response = await fetch(new URL('state', login.url), { headers: { 'X-API-Import': '1' } });
+    const waiting = await response.json(); assert.equal(waiting.status, 'incomplete');
+    assert.equal(waiting.candidates[0].url, baseURL); assert.equal(waiting.candidates[0].model, '');
+    assert.deepEqual(waiting.candidates[0].models, ['fixture-model']); assert.equal(calls, 0);
+    await call(login.url, 'command', { type: 'edit', changes: { model: candidate.model } });
+    await call(login.url, 'command', { type: 'verify' });
+  }
   const r = await fetch(new URL('state', login.url), { headers: { 'X-API-Import': '1' } });
   const checked = await r.json(); assert.equal(checked.status, 'verified'); assert.ok(!JSON.stringify(checked).includes(candidate.key));
   await call(login.url, 'command', { type: 'confirm' });
@@ -89,7 +101,7 @@ async function importOne() {
 try {
   const init = await ask('init', { plugins: [{ spec: root, target: root }], authPath, directory: path.dirname(authPath), loadMillis: 10000 });
   assert.equal(init.plugins[0]?.error, undefined);
-  const first = await importOne();
+  const first = await importOne(true); assert.equal(modelLists, 1);
   let stored = JSON.parse(await readFile(authPath, 'utf8'));
   assert.deepEqual(stored.unrelated, unrelated);
   const imported = Object.values(stored).filter(auth => auth.metadata?.version === 1);
@@ -114,7 +126,7 @@ try {
   await new Promise(resolve => host.once('close', resolve));
   const reloaded = JSON.parse(await cli(['plugin', 'list', '--json']));
   const actual = reloaded.providers.find(p => p.id === 'api-import'); assert.equal(actual.accounts.length, 1); assert.equal(actual.models[0].apiId, candidate.model);
-  console.log(JSON.stringify({ result: 'PASS', version, officialHost: hostName, pluginLoaded: true, officialAccountSaved: true, accountReloaded: true, gatewayFetchHookPassed: true, duplicateAccountPrevented: true, cancelledLoginNotSaved: true, unrelatedAccountPreserved: true, fixtureRequests: calls, realCredentialsUsed: false, sandbox: directory }, null, 2));
+  console.log(JSON.stringify({ result: 'PASS', version, officialHost: hostName, pluginLoaded: true, newApiRootAndModelSelectionPassed: true, officialAccountSaved: true, accountReloaded: true, gatewayFetchHookPassed: true, duplicateAccountPrevented: true, cancelledLoginNotSaved: true, unrelatedAccountPreserved: true, fixtureRequests: calls, realCredentialsUsed: false, sandbox: directory }, null, 2));
 } finally {
   host.kill(); lines.close(); for (const item of pending.values()) { clearTimeout(item.timeout); item.reject(new Error('test shutdown')); }
   api.closeAllConnections(); await new Promise(resolve => api.close(resolve));

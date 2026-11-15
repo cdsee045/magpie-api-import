@@ -22,7 +22,7 @@ export class HttpValidator implements Validator {
         await response.body?.cancel();
         if ([401, 403].includes(response.status)) throw new ImportError("AUTH", "Key 无效或没有访问权限，请核对后重试。");
         if (response.status === 429) throw new ImportError("LIMIT", "接口限流或额度不足，请稍后重试。");
-        if (response.status === 404) throw new ImportError("NOT_FOUND", "接口路径或模型不存在，请核对 API 地址、协议和模型。");
+        if (response.status === 404) throw new ImportError("NOT_FOUND", path === "/models" ? "未找到模型列表接口，请核对 API 地址（常见 OpenAI 兼容地址以 /v1 结尾）；也可手动填写模型。" : "接口路径或模型不存在，请核对 API 地址、协议和模型。");
         throw new ImportError("HTTP", `接口返回 HTTP ${response.status}，请核对配置后重试。`);
       }
       const reader = response.body?.getReader();

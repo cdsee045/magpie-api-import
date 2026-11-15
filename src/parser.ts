@@ -25,7 +25,15 @@ function candidate(record: Record<string, unknown>, inherited: Record<string, un
   const rawUrl = string(get(urlFields));
   let url = rawUrl, key = string(get(keyFields));
   const issues: string[] = [];
-  if (rawUrl) { try { url = normalizeUrl(rawUrl); } catch (e) { issues.push((e as Error).message); } }
+  if (rawUrl) {
+    try {
+      url = normalizeUrl(rawUrl);
+      // New API's copied connection object carries a site root, while its
+      // OpenAI endpoints live below /v1. Preserve explicit/custom paths and
+      // never add this convention to an arbitrary unmarked API URL.
+      if ((record._type ?? inherited._type) === "newapi_channel_conn" && new URL(url).pathname === "/") url += "/v1";
+    } catch (e) { issues.push((e as Error).message); }
+  }
   if (map.keybase64 !== undefined || map.apikeybase64 !== undefined || /base64/i.test(string(map.keyencoding ?? map.encoding))) {
     try { key = decode(string(map.keybase64 ?? map.apikeybase64 ?? key)); }
     catch { key = ""; issues.push("Base64 Key 无效，请手动补全。"); }

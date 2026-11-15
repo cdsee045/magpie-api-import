@@ -25,6 +25,13 @@
       $('review-wrap').hidden = !c.needsKeyReview;
       if (!c.needsKeyReview) $('review').checked = false;
       $('models').replaceChildren(...c.models.map(model => { const option = document.createElement('option'); option.value = model; return option; }));
+      const picker = $('model-picker');
+      if (picker) {
+        picker.hidden = !c.models.length;
+        const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = `从已获取的 ${c.models.length} 个模型中选择`;
+        picker.replaceChildren(placeholder, ...c.models.map(model => { const option = document.createElement('option'); option.value = model; option.textContent = model; return option; }));
+        picker.value = c.models.includes(c.model) ? c.model : '';
+      }
     } else { $('key').value = ''; $('key').type = 'password'; revealed = false; $('reveal').textContent = '显示'; }
     $('validation-label').textContent = next.status === 'verified' ? '当前模型已验证' : '尚未验证';
     for (const el of $('editor').querySelectorAll('input,select,button')) el.disabled = busy();
@@ -54,6 +61,11 @@
   $('detect').onclick = () => { $('key').value=''; send({type:'detect'}); };
   $('auto').onchange = () => send({type:'auto',value:$('auto').checked});
   $('load-models').onclick = () => send({type:'models'});
+  if ($('model-picker')) $('model-picker').onchange = event => {
+    if (!event.target.value) return;
+    $('model').value = event.target.value;
+    send({type:'edit',changes:{model:event.target.value},reviewed:false});
+  };
   $('cancel').onclick = () => send({type:'dismiss'});
   $('confirmation').addEventListener('cancel', event => { event.preventDefault(); send({type:'dismiss'}); });
   $('confirm').onclick = () => { $('confirm').disabled=true; send({type:'confirm'}); };
@@ -70,7 +82,7 @@
       api = globalThis.apiImport;
       if (!api || api.version !== 1) { notice('导入会话未连接，请返回 Magpie 重新登录。'); $('detect').disabled=true; $('auto').disabled=true; return; }
       api.subscribe(render);
-    } catch { notice('宿主连接失败，请重新打开自定义供应商页面。'); }
+    } catch { notice('导入连接失败，请返回 Magpie 重新登录。'); }
   }
   addEventListener('pagehide', () => { $('key').value=''; if ($('confirmation').open) $('confirmation').close(); });
   start();

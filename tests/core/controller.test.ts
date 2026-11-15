@@ -6,7 +6,7 @@ import type { Validator } from "../../src/validator.ts";
 const candidate: Candidate = { name: "test", url: "https://api.example.test/v1", key: "unit_test_key_123456789", protocol: "chat-completions", model: "one", models: ["one", "two"], needsKeyReview: false };
 const clipboard: Clipboard = { kind: "text", text: JSON.stringify(candidate) };
 const receipt = (c: Candidate, now = Date.now()): Receipt => ({ fingerprint: fingerprint(c), checkedAt: now, expiresAt: now + 300_000, model: c.model, protocol: "chat-completions" });
-function setup(options: { clipboard?: Clipboard; existing?: boolean; validate?: Validator["validate"]; read?: ImportHost["readClipboard"]; save?: ImportHost["save"]; now?: () => number } = {}) {
+function setup(options: { clipboard?: Clipboard; existing?: boolean; validate?: Validator["validate"]; models?: Validator["models"]; read?: ImportHost["readClipboard"]; save?: ImportHost["save"]; now?: () => number } = {}) {
   const counts = { reads: 0, validates: 0, saves: 0, ocr: 0 }, saved: Candidate[] = [];
   let auto = true;
   const host: ImportHost = {
@@ -15,7 +15,7 @@ function setup(options: { clipboard?: Clipboard; existing?: boolean; validate?: 
     async save(c,r,s) { counts.saves++; if (options.save) return options.save(c,r,s); saved.push(c); return { id: "new" }; },
     async getAuto() { return auto; }, async setAuto(v) { auto = v; },
   };
-  const validator: Validator = { async validate(c,s) { counts.validates++; return options.validate ? options.validate(c,s) : receipt(c, options.now?.()); }, async models() { return ["one", "two"]; } };
+  const validator: Validator = { async validate(c,s) { counts.validates++; return options.validate ? options.validate(c,s) : receipt(c, options.now?.()); }, async models(c,s) { return options.models ? options.models(c,s) : ["one", "two"]; } };
   const ocr: Ocr = { async recognize() { counts.ocr++; return { text: JSON.stringify(candidate), keyReviewRequired: true }; } };
   return { engine: new ImportController(host, validator, ocr, options.now), counts, saved };
 }
@@ -85,6 +85,35 @@ describe("page-scoped import lifecycle", () => {
   test("only model list retrieval never authorizes adding", async () => {
     const { engine } = setup({ clipboard: { kind: "text", text: JSON.stringify({ ...candidate, model: "", models: [] }) } });
     await engine.setPage("providers/custom/new"); await engine.loadModels(); expect(engine.snapshot().status).toBe("incomplete"); expect(await engine.confirm()).toBe(false);
+  });
+  test("a New API connection without a model discovers the list but never guesses or makes a paid call", async () => {
+    let lists = 0;
+    const { engine, counts } = setup({ clipboard: { kind: "text", text: JSON.stringify({ _type: "newapi_channel_conn", url: "https://api.example.test", key: candidate.key }) }, models: async c => { lists++; expect(c.url).toBe("https://api.example.test/v1"); return ["one", "two"]; } });
+    await engine.setPage("providers/custom/new");
+    expect(lists).toBe(1); expect(counts.validates).toBe(0); expect(engine.snapshot().candidates[0]?.model).toBe("");
+    expect(engine.snapshot().candidates[0]?.models).toEqual(["one", "two"]);
+    expect(engine.snapshot().message).toContain("已获取 2 个模型"); expect(await engine.confirm()).toBe(false);
+    engine.edit({ model: "two" }); await engine.verify(); expect(counts.validates).toBe(1); expect(engine.snapshot().confirmation?.model).toBe("two");
+  });
+  test("leaving during automatic model discovery drops the late list", async () => {
+    const list = deferred<string[]>();
+    const { engine, counts } = setup({ clipboard: { kind: "text", text: JSON.stringify({ ...candidate, model: "", models: [] }) }, models: () => list.promise });
+    const pending = engine.setPage("providers/custom/new"); await Bun.sleep(0); await engine.setPage("agents"); list.resolve(["one"]); await pending;
+    expect(engine.snapshot().candidates).toHaveLength(0); expect(counts.validates).toBe(0);
+  });
+  test("missing key or unsupported protocol cannot start automatic model discovery", async () => {
+    let lists = 0;
+    for (const changes of [{ key: "" }, { protocol: "responses" }]) {
+      const { engine, counts } = setup({ clipboard: { kind: "text", text: JSON.stringify({ ...candidate, ...changes, model: "", models: [] }) }, models: async () => { lists++; return ["one"]; } });
+      await engine.setPage("providers/custom/new"); expect(counts.validates).toBe(0); engine.dispose();
+    }
+    expect(lists).toBe(0);
+  });
+  test("manual model listing also waits for OCR key review", async () => {
+    let lists = 0;
+    const { engine } = setup({ clipboard: { kind: "image", png: new Uint8Array([1]) }, models: async () => { lists++; return ["one"]; } });
+    await engine.setPage("providers/custom/new"); await engine.loadModels(); expect(lists).toBe(0); expect(engine.snapshot().status).toBe("review");
+    engine.edit({}, true); await engine.loadModels(); expect(lists).toBe(1);
   });
   test("automatic detection can be disabled and explicit re-detection works", async () => {
     const { engine, counts } = setup(); await engine.setAuto(false); await engine.setPage("providers/custom/new"); expect(counts.reads).toBe(0);

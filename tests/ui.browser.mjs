@@ -39,7 +39,7 @@ try{
     await frame.locator('#confirm').click();await frame.locator('#notice').filter({hasText:'供应商已添加'}).waitFor();await context.close();
   }
   {
-    const{context,page,frame}=await fresh();await call('fixture',{scenario:'incomplete'});await enter(page);await frame.locator('#notice').filter({hasText:'请选择或填写'}).waitFor();
+    const{context,page,frame}=await fresh();await call('fixture',{scenario:'incomplete'});await enter(page);await frame.locator('#notice').filter({hasText:'请选择一个模型'}).waitFor();
     await frame.locator('#load-models').click();await frame.locator('#notice').filter({hasText:'请选择一个模型'}).waitFor();assert.equal((await call('state')).requestCount,0);checks++;
     await frame.locator('#model').fill('fixture-model');await frame.locator('#validate').click();await prompt(frame).waitFor({state:'visible'});await context.close();
   }

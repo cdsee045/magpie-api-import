@@ -2,7 +2,7 @@
 
 通过**官方 Magpie 插件登录接口**导入 API。主动粘贴文字、JSON 或截图，在本机识别，完成一次真实模型调用后确认，由 Magpie 保存账号。首版支持 Windows、本机浏览器和 OpenAI Chat Completions 兼容接口。
 
-**0.2.0 已改用官方接口，无需修改 Magpie 主程序。** 已在未修改的 Magpie **0.1.4248** 及其实际 Bun 插件宿主中验证加载、登录、账号保存/重载、去重、取消和 HTTP 转发钩子。更早版本未验证；测试未使用真实收费 Key，也未覆盖所有供应商的工具调用能力。
+**0.2.1 支持 New API 连接 JSON，使用官方接口，无需修改 Magpie 主程序。** 已在未修改的 Magpie **0.1.4248 / 0.1.4257** 及其实际 Bun 插件宿主中验证加载、登录、账号保存/重载、去重、取消和 HTTP 转发钩子。更早版本未验证；测试未使用真实收费 Key，也未覆盖所有供应商的工具调用能力。
 
 ## 安装与使用
 
@@ -15,7 +15,7 @@ github:cdsee045/magpie-api-import#main
 1. 安装并启用“API 导入”。已安装旧版的电脑，到“插件 → 已安装”更新此插件。
 2. 在插件的已安装条目点击“登录”。也可运行 `magpie plugin login api-import`。
 3. Magpie 打开本机导入页；粘贴 API 文字、JSON 或截图，也可选择 PNG/JPEG/WebP 图片。
-4. 点击“识别并验证”。缺少模型时填写模型 ID，或先获取模型列表。截图识别的 Key 必须逐字核对。
+4. 点击“识别并验证”。未提供模型时自动获取列表，选择模型再验证；列表不可用时手动填写模型 ID。截图识别的 Key 必须逐字核对。
 5. 真实调用通过后，核对域名、脱敏 Key、协议和模型，点击一次“确认添加”。
 6. 返回 Magpie 查看登录结果。配置保存为**“API 导入”供应商的账号**；在模型选择器中选用显示名称、原模型和域名的条目。
 
@@ -26,6 +26,14 @@ github:cdsee045/magpie-api-import#main
 ```json
 {"name":"我的 API","url":"https://api.example.com/v1","key":"完整 API Key","model":"接口支持的模型 ID"}
 ```
+
+New API 的复制连接信息也可直接粘贴：
+
+```json
+{"_type":"newapi_channel_conn","url":"https://api.example.com","key":"YOUR_API_KEY"}
+```
+
+仅对明确标注该格式的根地址补充 `/v1`，不改写已有 `/v1` 或其他显式路径，也不改写普通 JSON 的根地址。此格式通常没有模型信息：插件获取列表供你选择，不猜测模型，也不会把“获取列表成功”当成验证通过。
 
 验证可能产生少量费用。导入页地址只包含随机会话令牌，不包含 Key；请勿分享该页面地址。原始输入和截图仅在内存中处理，Key 由 Magpie 的原有账号存储保管。
 
@@ -74,4 +82,4 @@ npm run test:github-install
 - `scripts/test-magpie.mjs`：官方 Magpie 运行时验收。
 - `integration/windows`：历史 Go 剪贴板库，**正式插件不加载、不需要编译**。
 
-证据和限制见 [官方接入说明](docs/host-integration.md)，覆盖见 [验收记录](docs/acceptance.md)。原设计保留在 `docx`，当前流程以 0.2.0 调整为准。不实现余额查询、默认模型自动切换或批量导入；`private: true` 只禁止 npm 发布，不影响公开 GitHub 安装。
+证据和限制见 [官方接入说明](docs/host-integration.md)，覆盖见 [验收记录](docs/acceptance.md)。原设计保留在 `docx`，当前流程以官方接入说明为准。不实现余额查询、默认模型自动切换或批量导入；`private: true` 只禁止 npm 发布，不影响公开 GitHub 安装。

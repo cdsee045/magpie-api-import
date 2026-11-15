@@ -9,6 +9,20 @@ describe("recognition", () => {
     expect(result.candidates[0]).toMatchObject({ name: "测试 API", url: "https://api.example.test/v1", key, protocol: "chat-completions", model: "test-model", models: ["test-model", "other"] });
     expect(candidateIssues(result.candidates[0]!)).toEqual([]);
   });
+  test("New API connection JSON expands a site root to /v1 and leaves model selection pending", () => {
+    for (const url of ["https://new-api.example.test", "https://new-api.example.test/"]) {
+      const c = parseText(JSON.stringify({ _type: "newapi_channel_conn", key, url })).candidates[0]!;
+      expect(c).toMatchObject({ url: "https://new-api.example.test/v1", key, model: "", models: [] });
+      expect(candidateIssues(c)).toEqual(["请选择或填写要验证的模型。"]);
+    }
+  });
+  test("New API explicit paths are preserved and unmarked roots do not gain /v1", () => {
+    for (const path of ["/v1", "/gateway/v1", "/custom"]) {
+      expect(parseText(JSON.stringify({ _type: "newapi_channel_conn", key, url: "https://api.example.test" + path })).candidates[0]?.url).toBe("https://api.example.test" + path);
+    }
+    for (const extra of [{}, { type: "newapi_channel_conn" }, { _type: "another_format" }])
+      expect(parseText(JSON.stringify({ ...extra, key, url: "https://api.example.test" })).candidates[0]?.url).toBe("https://api.example.test");
+  });
   test("supports shared fields with explicitly selected multiple JSON keys", () => {
     const { candidates } = parseText(JSON.stringify({ url: "https://api.example.test/v1", model: "one", keys: [{ name: "A", key }, { name: "B", key: key + "B" }] }));
     expect(candidates).toHaveLength(2); expect(candidates[1]).toMatchObject({ name: "B", key: key + "B", model: "one" });

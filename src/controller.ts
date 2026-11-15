@@ -87,12 +87,20 @@ export class ImportController {
       if (result.candidates.length || result.issues.length) this.remember(this.seen, hash);
       if (!this.candidates.length) { this.update(result.issues.length ? "incomplete" : "idle", result.issues.join(" ")); return; }
       if (this.candidates.length > 1) { this.update("selecting", `识别到 ${this.candidates.length} 条配置，请选择一条验证并导入。`); return; }
-      await this.verify(manual);
+      await this.prepareCandidate(manual);
     } catch (error) { if (this.live(seq)) this.update("failed", publicError(error)); }
   }
   async select(index: number): Promise<void> {
     if (!this.active || this.status === "saving" || !Number.isInteger(index) || !this.candidates[index]) return;
-    this.cancel(); this.selected = index; await this.verify();
+    this.cancel(); this.selected = index; await this.prepareCandidate();
+  }
+  private async prepareCandidate(manual = true): Promise<void> {
+    const chosen = this.candidates[this.selected];
+    // A connection object commonly has URL + Key but no model. Discover the
+    // list, then require the user to choose; listing never authorizes a save
+    // and an OCR credential is never sent before the user reviews it.
+    if (chosen && !chosen.model && candidateIssues(chosen, false).length === 0) await this.loadModels();
+    else await this.verify(manual);
   }
   edit(changes: Partial<Pick<Candidate, "name" | "url" | "key" | "model" | "protocol">>, reviewed = false): void {
     if (!this.active || this.status === "saving") return;
@@ -106,13 +114,15 @@ export class ImportController {
   async loadModels(): Promise<void> {
     const chosen = this.candidates[this.selected];
     if (!this.active || !chosen || this.status === "saving") return;
+    const issues = candidateIssues(chosen, false);
+    if (issues.length) { this.cancel(); this.update(chosen.needsKeyReview ? "review" : "incomplete", issues.join(" ")); return; }
     const seq = this.cancel(), signal = this.running.signal;
     this.update("reading", "正在获取模型列表；获取列表不代表验证通过。");
     try {
       const models = await this.validator.models({ ...chosen }, signal);
       if (!this.live(seq)) return;
       chosen.models = models;
-      this.update("incomplete", models.length ? "请选择一个模型，再进行真实调用验证。" : "未找到模型，请手动填写。");
+      this.update("incomplete", models.length ? `地址和 Key 已识别，已获取 ${models.length} 个模型；请选择一个模型，再进行真实调用验证。` : "地址和 Key 已识别，但未获取到模型；请手动填写接口支持的模型 ID。");
     } catch (error) { if (this.live(seq)) this.update("failed", publicError(error)); }
   }
   async verify(manual = true): Promise<void> {
