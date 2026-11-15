@@ -1,0 +1,461 @@
+<style>
+  #magpie-import-demo { --mp-bg: light-dark(#fafaf9,#17191b); --mp-panel: light-dark(#fff,#202326); --mp-side: light-dark(#f3f3f0,#1c1e20); --mp-ink: light-dark(#242624,#eef0eb); --mp-muted: light-dark(#747870,#a3aaa0); --mp-line: light-dark(#e5e7e0,#373b37); --mp-soft: light-dark(#f0f1ec,#2a2e29); --mp-green: light-dark(#247b58,#79d3a9); --mp-green-bg: light-dark(#ecf6ef,#203d30); --mp-red: light-dark(#ae4540,#f19d97); --mp-red-bg: light-dark(#fcf0ee,#422a28); --mp-amber: light-dark(#916b21,#e3c07b); --mp-amber-bg: light-dark(#faf5e8,#3a3323); --mp-strong: light-dark(#292e29,#e6ece4); --mp-on-strong: light-dark(#fff,#1e251f); --mp-shadow: light-dark(#20251a14,#00000040); color:var(--mp-ink); font:400 14px/1.55 'Segoe UI','Microsoft YaHei',sans-serif; color-scheme:light dark; width:100%; }
+  #magpie-import-demo *, #magpie-import-demo *::before, #magpie-import-demo *::after { box-sizing:border-box; }
+  #magpie-import-demo [hidden] { display:none !important; }
+  #magpie-import-demo button, #magpie-import-demo input, #magpie-import-demo select, #magpie-import-demo textarea { font:inherit; }
+  #magpie-import-demo button { cursor:default; }
+  #magpie-import-demo button:disabled { opacity:.48; cursor:not-allowed; }
+  #magpie-import-demo button:focus-visible, #magpie-import-demo input:focus-visible, #magpie-import-demo select:focus-visible, #magpie-import-demo textarea:focus-visible { outline:2px solid var(--mp-green); outline-offset:3px; }
+  #magpie-import-demo button svg, #magpie-import-demo .mp-icon svg { width:17px; height:17px; stroke-width:1.7; flex:none; }
+  #magpie-import-demo .mp-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  #magpie-import-demo .mp-between { justify-content:space-between; }
+  #magpie-import-demo .mp-muted { color:var(--mp-muted); }
+  #magpie-import-demo .mp-small { font-size:12px; }
+  #magpie-import-demo .mp-button { display:inline-flex; gap:7px; align-items:center; justify-content:center; background:var(--mp-panel); color:var(--mp-ink); border:1px solid var(--mp-line); border-radius:8px; padding:8px 13px; font-weight:500; text-decoration:none; white-space:normal; }
+  #magpie-import-demo .mp-button:hover:not(:disabled) { background:var(--mp-soft); }
+  #magpie-import-demo .mp-button-primary { background:var(--mp-strong); color:var(--mp-on-strong); border-color:var(--mp-strong); }
+  #magpie-import-demo .mp-button-primary:hover:not(:disabled) { background:var(--mp-strong); opacity:.9; }
+  #magpie-import-demo .mp-ghost { border-color:transparent; background:transparent; }
+  #magpie-import-demo .mp-demo-bar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 14px; padding:2px 0; }
+  #magpie-import-demo .mp-demo-label { display:flex; align-items:center; gap:8px; font-weight:500; }
+  #magpie-import-demo .mp-demo-badge { font-size:11px; color:var(--mp-muted); border:1px solid var(--mp-line); border-radius:5px; padding:1px 6px; }
+  #magpie-import-demo .mp-demo-bar select { min-width:0; max-width:100%; border:1px solid var(--mp-line); color:var(--mp-ink); background:var(--mp-panel); padding:7px 30px 7px 10px; border-radius:7px; }
+  #magpie-import-demo .mp-sample { background:var(--mp-panel); border:1px solid var(--mp-line); border-radius:10px; margin-bottom:14px; padding:14px; }
+  #magpie-import-demo .mp-sample textarea { width:100%; min-height:104px; resize:vertical; border:1px solid var(--mp-line); background:var(--mp-bg); color:var(--mp-ink); padding:10px; border-radius:7px; overflow-wrap:anywhere; }
+  #magpie-import-demo .mp-sample-caption { margin:0 0 10px; color:var(--mp-muted); font-size:12px; }
+  #magpie-import-demo .mp-shot { padding:16px; background:var(--mp-bg); border:1px solid var(--mp-line); border-radius:7px; overflow-wrap:anywhere; }
+  #magpie-import-demo .mp-shot p { margin:0 0 10px; }
+  #magpie-import-demo .mp-shot code { color:var(--mp-muted); font:12px/1.6 Consolas,monospace; background:var(--mp-soft); }
+  #magpie-import-demo .mp-window { border:1px solid var(--mp-line); border-radius:14px; overflow:hidden; background:var(--mp-bg); box-shadow:0 10px 34px var(--mp-shadow); }
+  #magpie-import-demo .mp-titlebar { min-height:49px; display:flex; justify-content:space-between; align-items:center; padding:10px 18px; border-bottom:1px solid var(--mp-line); background:var(--mp-panel); }
+  #magpie-import-demo .mp-brand { font-size:17px; font-weight:500; letter-spacing:-.5px; display:flex; gap:9px; align-items:center; }
+  #magpie-import-demo .mp-brand-icon { display:flex; background:var(--mp-strong); color:var(--mp-on-strong); border-radius:7px; padding:5px; }
+  #magpie-import-demo .mp-window-label { font-size:11px; color:var(--mp-muted); padding-right:80px; }
+  #magpie-import-demo .mp-layout { display:grid; grid-template-columns:172px minmax(0,1fr); min-height:626px; position:relative; }
+  #magpie-import-demo .mp-sidebar { background:var(--mp-side); border-right:1px solid var(--mp-line); padding:22px 10px 14px; display:flex; flex-direction:column; justify-content:space-between; gap:24px; }
+  #magpie-import-demo .mp-nav-label { margin:0 12px 10px; color:var(--mp-muted); font-size:11px; }
+  #magpie-import-demo .mp-nav { display:flex; flex-direction:column; gap:5px; }
+  #magpie-import-demo .mp-nav button { display:flex; align-items:center; gap:11px; width:100%; padding:10px 13px; border:0; border-radius:7px; background:transparent; color:var(--mp-muted); text-align:left; }
+  #magpie-import-demo .mp-nav button:hover { background:var(--mp-soft); color:var(--mp-ink); }
+  #magpie-import-demo .mp-nav button[aria-current=page] { background:var(--mp-panel); color:var(--mp-ink); box-shadow:0 1px 3px var(--mp-shadow); font-weight:500; }
+  #magpie-import-demo .mp-side-footer { padding:0 12px; font-size:11px; color:var(--mp-muted); }
+  #magpie-import-demo .mp-dot { width:6px; height:6px; border-radius:50%; background:var(--mp-green); display:inline-block; margin-right:5px; }
+  #magpie-import-demo .mp-main { min-width:0; padding:27px 30px 24px; }
+  #magpie-import-demo .mp-breadcrumb { font-size:12px; color:var(--mp-muted); margin-bottom:17px; display:flex; align-items:center; gap:7px; }
+  #magpie-import-demo .mp-breadcrumb button { border:0; padding:0; background:transparent; color:var(--mp-muted); }
+  #magpie-import-demo h1 { font-size:24px; font-weight:500; letter-spacing:-.5px; line-height:1.3; margin:0 0 6px; }
+  #magpie-import-demo h2 { font-size:15px; font-weight:500; margin:0; }
+  #magpie-import-demo h3 { font-size:14px; font-weight:500; margin:0 0 5px; }
+  #magpie-import-demo p { margin:0; }
+  #magpie-import-demo .mp-heading { margin-bottom:25px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+  #magpie-import-demo .mp-count { display:inline-flex; align-items:center; font-size:12px; font-weight:400; color:var(--mp-muted); background:var(--mp-soft); border-radius:5px; padding:1px 6px; margin-left:6px; }
+  #magpie-import-demo .mp-section-label { font-size:12px; color:var(--mp-muted); margin:22px 0 10px; }
+  #magpie-import-demo .mp-providers { display:flex; flex-direction:column; gap:10px; }
+  #magpie-import-demo .mp-provider { padding:17px 18px; display:flex; gap:13px; align-items:center; border:1px solid var(--mp-line); background:var(--mp-panel); border-radius:10px; }
+  #magpie-import-demo .mp-provider.mp-new { border-color:var(--mp-green); }
+  #magpie-import-demo .mp-provider-logo { height:38px; width:38px; border-radius:10px; background:var(--mp-soft); display:flex; align-items:center; justify-content:center; flex:none; font-size:19px; font-weight:500; }
+  #magpie-import-demo .mp-provider-text { flex:1; min-width:0; }
+  #magpie-import-demo .mp-provider-text p { color:var(--mp-muted); font-size:12px; overflow-wrap:anywhere; margin-top:3px; }
+  #magpie-import-demo .mp-pill { font-size:11px; padding:3px 8px; background:var(--mp-soft); color:var(--mp-muted); border-radius:5px; white-space:nowrap; }
+  #magpie-import-demo .mp-pill-green { color:var(--mp-green); background:var(--mp-green-bg); }
+  #magpie-import-demo .mp-add { display:flex; align-items:center; gap:13px; width:100%; padding:18px; color:var(--mp-ink); background:var(--mp-panel); border:1px dashed var(--mp-line); border-radius:10px; text-align:left; }
+  #magpie-import-demo .mp-add:hover { border-color:var(--mp-muted); background:var(--mp-soft); }
+  #magpie-import-demo .mp-add-icon { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--mp-soft); flex:none; }
+  #magpie-import-demo .mp-add-copy { flex:1; min-width:0; }
+  #magpie-import-demo .mp-add-copy span { display:block; color:var(--mp-muted); font-size:12px; margin-top:3px; }
+  #magpie-import-demo .mp-footnote { margin-top:22px; color:var(--mp-muted); font-size:12px; display:flex; gap:7px; align-items:flex-start; }
+  #magpie-import-demo .mp-status { margin-bottom:19px; border:1px solid var(--mp-line); background:var(--mp-panel); border-radius:9px; padding:14px 16px; display:flex; gap:11px; align-items:flex-start; }
+  #magpie-import-demo .mp-status > .mp-icon { display:flex; padding-top:2px; }
+  #magpie-import-demo .mp-status-copy { flex:1; min-width:0; }
+  #magpie-import-demo .mp-status p { color:var(--mp-muted); font-size:12px; margin-top:3px; overflow-wrap:anywhere; }
+  #magpie-import-demo .mp-status.success { background:var(--mp-green-bg); border-color:transparent; }
+  #magpie-import-demo .mp-status.success > .mp-icon { color:var(--mp-green); }
+  #magpie-import-demo .mp-status.error { background:var(--mp-red-bg); border-color:transparent; }
+  #magpie-import-demo .mp-status.error > .mp-icon { color:var(--mp-red); }
+  #magpie-import-demo .mp-status.warning { background:var(--mp-amber-bg); border-color:transparent; }
+  #magpie-import-demo .mp-status.warning > .mp-icon { color:var(--mp-amber); }
+  #magpie-import-demo .mp-form-panel { background:var(--mp-panel); border:1px solid var(--mp-line); padding:22px; border-radius:11px; }
+  #magpie-import-demo .mp-panel-heading { margin-bottom:20px; }
+  #magpie-import-demo .mp-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+  #magpie-import-demo .mp-field { display:block; min-width:0; }
+  #magpie-import-demo .mp-field.full { grid-column:1 / -1; }
+  #magpie-import-demo .mp-field > span { display:block; margin-bottom:7px; font-size:12px; font-weight:500; }
+  #magpie-import-demo .mp-field input, #magpie-import-demo .mp-field select { width:100%; min-width:0; background:var(--mp-bg); color:var(--mp-ink); border:1px solid var(--mp-line); border-radius:7px; padding:9px 10px; }
+  #magpie-import-demo .mp-field input::placeholder { color:var(--mp-muted); }
+  #magpie-import-demo .mp-field small { display:block; font-size:11px; color:var(--mp-muted); margin-top:5px; }
+  #magpie-import-demo .mp-field > .mp-key-field { display:flex; gap:6px; }
+  #magpie-import-demo .mp-key-field button { flex:none; padding:7px 10px; }
+  #magpie-import-demo .mp-form-divider { margin:22px 0 16px; border:0; border-top:1px solid var(--mp-line); }
+  #magpie-import-demo .mp-check { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--mp-muted); }
+  #magpie-import-demo .mp-check input { accent-color:var(--mp-green); width:15px; height:15px; }
+  #magpie-import-demo .mp-form-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:15px; }
+  #magpie-import-demo .mp-candidates { display:grid; gap:8px; margin-top:13px; }
+  #magpie-import-demo .mp-candidate { display:flex; align-items:center; gap:10px; border:1px solid var(--mp-line); border-radius:7px; background:var(--mp-panel); padding:10px 12px; color:var(--mp-ink); text-align:left; width:100%; }
+  #magpie-import-demo .mp-candidate > span:not(.mp-icon) { flex:1; min-width:0; }
+  #magpie-import-demo .mp-candidate .mp-icon { flex:none; }
+  #magpie-import-demo .mp-candidate small { font-size:11px; color:var(--mp-muted); }
+  #magpie-import-demo .mp-steps { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--mp-muted); margin-top:11px; }
+  #magpie-import-demo .mp-step { display:flex; align-items:center; gap:4px; }
+  #magpie-import-demo .mp-step.done { color:var(--mp-green); }
+  #magpie-import-demo .mp-step.active { color:var(--mp-ink); }
+  #magpie-import-demo .mp-step svg { width:12px; height:12px; }
+  #magpie-import-demo .mp-spin svg { animation:mp-spin 1s linear infinite; }
+  @keyframes mp-spin { to { transform:rotate(360deg); } }
+  #magpie-import-demo .mp-overlay { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; padding:24px; background:light-dark(#20262048,#00000085); }
+  #magpie-import-demo .mp-confirm { background:var(--mp-panel); color:var(--mp-ink); width:100%; max-width:448px; padding:27px; border:1px solid var(--mp-line); border-radius:14px; box-shadow:0 20px 60px var(--mp-shadow); }
+  #magpie-import-demo .mp-confirm-icon { width:40px; height:40px; border-radius:11px; background:var(--mp-green-bg); color:var(--mp-green); display:flex; align-items:center; justify-content:center; margin-bottom:15px; }
+  #magpie-import-demo .mp-confirm-icon svg { width:22px; height:22px; }
+  #magpie-import-demo .mp-confirm h2 { font-size:19px; margin-bottom:6px; }
+  #magpie-import-demo .mp-confirm-subtitle { color:var(--mp-muted); font-size:12px; }
+  #magpie-import-demo .mp-details { margin:20px 0; border-top:1px solid var(--mp-line); border-bottom:1px solid var(--mp-line); padding:12px 0; }
+  #magpie-import-demo .mp-detail { display:grid; grid-template-columns:80px minmax(0,1fr); gap:12px; padding:6px 0; font-size:12px; }
+  #magpie-import-demo .mp-detail dt { color:var(--mp-muted); }
+  #magpie-import-demo .mp-detail dd { margin:0; overflow-wrap:anywhere; }
+  #magpie-import-demo .mp-confirm-actions { margin-top:23px; display:flex; justify-content:flex-end; gap:8px; }
+  #magpie-import-demo .mp-inline-area { margin-bottom:19px; }
+  #magpie-import-demo .mp-inline-area .mp-confirm { max-width:none; box-shadow:none; border-color:var(--mp-green); padding:22px; }
+  #magpie-import-demo .mp-setting-row { padding:20px 0; display:flex; justify-content:space-between; align-items:center; gap:20px; border-bottom:1px solid var(--mp-line); }
+  #magpie-import-demo .mp-setting-row input { width:18px; height:18px; accent-color:var(--mp-green); }
+  #magpie-import-demo .mp-empty { text-align:center; padding:70px 12px; color:var(--mp-muted); }
+  #magpie-import-demo .mp-empty .mp-icon { display:flex; justify-content:center; margin-bottom:15px; }
+  #magpie-import-demo .mp-empty svg { width:30px; height:30px; }
+  #magpie-import-demo .mp-agent { padding:18px 0; display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid var(--mp-line); }
+  #magpie-import-demo .mp-demo-note { font-size:12px; color:var(--mp-muted); margin-top:12px; }
+  @media(max-width:750px) { #magpie-import-demo .mp-layout { grid-template-columns:140px minmax(0,1fr); } #magpie-import-demo .mp-main { padding:22px 20px; } #magpie-import-demo .mp-form-panel { padding:18px; } #magpie-import-demo .mp-form-grid { grid-template-columns:1fr; } }
+  @media(max-width:530px) { #magpie-import-demo .mp-layout { grid-template-columns:1fr; } #magpie-import-demo .mp-sidebar { padding:9px; border-right:0; border-bottom:1px solid var(--mp-line); } #magpie-import-demo .mp-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px; } #magpie-import-demo .mp-nav button { flex-direction:column; gap:4px; padding:7px 3px; font-size:11px; } #magpie-import-demo .mp-side-footer, #magpie-import-demo .mp-nav-label { display:none; } #magpie-import-demo .mp-main { padding:20px 15px; } #magpie-import-demo .mp-heading { gap:12px; } #magpie-import-demo h1 { font-size:22px; } #magpie-import-demo .mp-titlebar { padding:11px 14px; } #magpie-import-demo .mp-window-label { padding-right:60px; } #magpie-import-demo .mp-provider { padding:14px 12px; gap:10px; flex-wrap:wrap; } #magpie-import-demo .mp-provider .mp-pill { margin-left:48px; } #magpie-import-demo .mp-overlay { padding:12px; align-items:flex-start; padding-top:40px; } #magpie-import-demo .mp-confirm { padding:21px; } #magpie-import-demo .mp-confirm-actions { flex-wrap:wrap; } #magpie-import-demo .mp-confirm-actions button { flex:1; } #magpie-import-demo .mp-demo-bar { gap:9px; } #magpie-import-demo .mp-demo-bar select { flex:1; min-width:150px; } #magpie-import-demo .mp-form-actions { align-items:flex-start; } #magpie-import-demo input, #magpie-import-demo textarea, #magpie-import-demo select { font-size:16px; } }
+  @media(prefers-reduced-motion:reduce) { #magpie-import-demo .mp-spin svg { animation:none; } }
+</style>
+<div id="magpie-import-demo" aria-label="Magpie 剪贴板导入交互演示">
+  <div class="mp-demo-bar">
+    <label class="mp-demo-label" for="mp-scenario"><i data-lucide="clipboard" aria-hidden="true"></i>模拟剪贴板 <span class="mp-demo-badge">演示数据</span></label>
+    <select id="mp-scenario" aria-label="模拟剪贴板场景">
+      <option value="json">JSON · 可用 API</option>
+      <option value="image">截图 · 三个 Base64 Key</option>
+      <option value="invalid">JSON · Key 已失效</option>
+      <option value="timeout">文本 · 网络超时</option>
+      <option value="incomplete">文本 · 缺少 API 地址</option>
+      <option value="unrelated">普通文字 · 无 API 信息</option>
+      <option value="duplicate">JSON · 已存在的配置</option>
+    </select>
+    <button class="mp-button mp-ghost cursor-interaction" id="mp-view-source" type="button" aria-expanded="false">查看内容</button>
+  </div>
+  <section class="mp-sample" id="mp-source-panel" aria-label="模拟输入内容" hidden>
+    <p class="mp-sample-caption" id="mp-source-caption"></p>
+    <div id="mp-source-shot" class="mp-shot" role="img" aria-label="包含三个 Base64 Key 的模拟截图" hidden></div>
+    <label for="mp-source-text" class="mp-small mp-muted" id="mp-text-label">可替换为自己的示例文本，验证结果仍为模拟</label>
+    <textarea id="mp-source-text" aria-labelledby="mp-text-label" spellcheck="false"></textarea>
+    <div class="mp-row" style="margin-top:9px"><button type="button" class="mp-button cursor-interaction" id="mp-apply-text">使用这段文本</button></div>
+  </section>
+  <div class="mp-window" id="mp-window" aria-label="Magpie 应用预览">
+    <div class="mp-titlebar"><span class="mp-brand"><span class="mp-brand-icon"><i data-lucide="bird" aria-hidden="true"></i></span>magpie</span><span class="mp-window-label">交互预览</span></div>
+    <div class="mp-layout">
+      <aside class="mp-sidebar">
+        <div><p class="mp-nav-label">工作空间</p><nav class="mp-nav" aria-label="Magpie 主导航">
+          <button type="button" class="cursor-interaction" data-page="agents"><i data-lucide="bot" aria-hidden="true"></i>智能体</button>
+          <button type="button" class="cursor-interaction" data-page="providers" aria-current="page"><i data-lucide="blocks" aria-hidden="true"></i>供应商</button>
+          <button type="button" class="cursor-interaction" data-page="usage"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>用量</button>
+          <button type="button" class="cursor-interaction" data-page="settings"><i data-lucide="settings-2" aria-hidden="true"></i>设置</button>
+        </nav></div>
+        <div class="mp-side-footer"><p><span class="mp-dot"></span>本地网关</p><p style="margin-top:4px">127.0.0.1:3425</p></div>
+      </aside>
+      <main class="mp-main" id="mp-main"></main>
+      <div class="mp-overlay" id="mp-overlay" hidden></div>
+    </div>
+  </div>
+  <p class="mp-demo-note">选择上方样例，再进入「自定义供应商」体验。识别、验证和保存均为模拟，不读取真实剪贴板或发送网络请求。</p>
+</div>
+<script id="magpie-demo-core">
+(() => {
+  const makeJson = (url, key, name) => JSON.stringify({ _type:'newapi_channel_conn', url, key, ...(name ? {name} : {}) }, null, 2);
+  const screenshotText = ['baseurl: https://relay.example/v1', 'BLG 1:1', 'Key(base64): '+btoa('demo_valid_blg_one'), 'BLG 2:1', 'Key(base64): '+btoa('demo_valid_blg_two'), '我们是冠军', 'Key(base64): '+btoa('demo_valid_champion')].join('\n');
+  const scenarios = {
+    json:{kind:'text',text:makeJson('https://api.example/v1','demo_valid_json_2026','我的 API'),label:'结构化 JSON，含完整地址与密钥'},
+    image:{kind:'image',text:screenshotText,label:'模拟 OCR 结果，所有密钥都是虚构示例'},
+    invalid:{kind:'text',text:makeJson('https://api.example/v1','demo_invalid_expired','失效的 API'),label:'模拟鉴权失败：401'},
+    timeout:{kind:'text',text:'名称: 备用线路\nbaseurl: https://backup.example/v1\nkey: demo_timeout_backup',label:'模拟网络超时'},
+    incomplete:{kind:'text',text:'名称: 尚未配置的 API\nkey: demo_valid_incomplete',label:'密钥完整，但没有提供 API 地址'},
+    unrelated:{kind:'text',text:'周五下午三点开会，记得带上产品方案。',label:'无关内容，不会出现识别或添加提示'},
+    duplicate:{kind:'text',text:makeJson('https://team.example/v1','demo_valid_team_existing','团队网关'),label:'与供应商列表里的团队网关完全相同'}
+  };
+  const existingProviders = () => [
+    {id:'deepseek',name:'DeepSeek',base:'https://deepseek.example/v1',key:'demo_valid_existing_deepseek',protocol:'chat',model:'demo-chat',models:2,current:true},
+    {id:'team',name:'团队网关',base:'https://team.example/v1',key:'demo_valid_team_existing',protocol:'chat',model:'demo-chat',models:3,current:false}
+  ];
+  function normalizeUrl(value) {
+    const u = new URL(String(value).trim());
+    if (!['https:','http:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) throw new Error('地址格式有误，请填写 API 基础地址');
+    if (u.protocol === 'http:' && !['localhost','127.0.0.1','[::1]'].includes(u.hostname)) throw new Error('远程 API 请使用 HTTPS 地址');
+    u.pathname = u.pathname.replace(/\/(?:chat\/completions|models)\/?$/,'').replace(/\/+$/,'');
+    if (!u.pathname || u.pathname === '/') u.pathname = '/v1';
+    return u.toString().replace(/\/$/,'');
+  }
+  const completeKey = key => !!key && key.length >= 8 && !/[*•…\s]/.test(key);
+  function candidate(name, base, key, model) {
+    let normalized = '', issue = '';
+    try { if(base) normalized = normalizeUrl(base); } catch(error) { issue = error.message; }
+    if(!base) issue = '缺少 API 地址，请补充后再验证';
+    if(!completeKey(String(key || ''))) issue = '密钥缺失、被遮挡或不完整，请重新粘贴原文';
+    return {name:String(name||'').trim() || (normalized ? new URL(normalized).hostname : '自定义 API'), base:normalized || String(base||''), key:String(key||'').trim(), protocol:'chat', model:String(model||'demo-chat'), issue};
+  }
+  function parseClipboard(snapshot) {
+    const text = String(snapshot?.text || '').trim();
+    if(!text || text.length > 16000) return {kind:'none',candidates:[]};
+    if(text.startsWith('{')) {
+      try {
+        const obj = JSON.parse(text);
+        if(!obj || Array.isArray(obj) || typeof obj !== 'object') return {kind:'none',candidates:[]};
+        const base = obj.url || obj.baseurl || obj.base_url || obj.baseURL || '';
+        const key = obj.key || obj.apiKey || obj.api_key || '';
+        if(!base && !key) return {kind:'none',candidates:[]};
+        const c = candidate(obj.name,base,key,obj.model);
+        return {kind:c.issue?'incomplete':'candidates',candidates:[c],issue:c.issue};
+      } catch { return {kind:'incomplete',candidates:[],issue:'JSON 格式不完整，请检查后重新粘贴'}; }
+    }
+    const lines = text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const urlMatch = text.match(/https?:\/\/[^\s<>"'`，。]+/i);
+    const base = urlMatch?.[0] || '';
+    const nameMatch = text.match(/(?:名称|name)\s*[:：]\s*([^\n]+)/i);
+    const candidates = [];
+    for(let i=0;i<lines.length;i++) {
+      const match = lines[i].match(/^(?:api[_ -]?key|key|密钥)(\s*\(base64\))?\s*[:：]\s*(.*)$/i);
+      if(!match) continue;
+      let key = match[2] || lines[i+1] || '';
+      if(match[1]) {
+        try {
+          if(!/^[A-Za-z0-9+/]+={0,2}$/.test(key) || key.length%4===1) throw new Error('invalid base64');
+          key = atob(key);
+          if(!/^[\x21-\x7e]+$/.test(key)) throw new Error('invalid decoded key');
+        } catch { return {kind:'incomplete',candidates:[],issue:'Base64 密钥无法解码，请检查截图识别结果'}; }
+      }
+      const previous = lines[i-1] || '';
+      const name = nameMatch?.[1] || (previous && !/https?:|key|密钥/i.test(previous) ? previous : '');
+      candidates.push(candidate(name,base,key));
+    }
+    if(!candidates.length && !base) return {kind:'none',candidates:[]};
+    if(!candidates.length) candidates.push(candidate(nameMatch?.[1],base,''));
+    const issue = candidates.find(c=>c.issue)?.issue || '';
+    return {kind:issue?'incomplete':'candidates',candidates,issue};
+  }
+  const fingerprint = c => JSON.stringify([c.base,c.key,c.protocol,c.model]);
+  const sameCredentials = (a,b) => a.base===b.base && a.key===b.key && a.protocol===b.protocol;
+  const maskedKey = key => !key ? '未提供' : key.slice(0,4)+'••••••••'+key.slice(-4);
+  function simulateValidation(c) {
+    if(c.issue) return {ok:false,message:c.issue};
+    if(c.key.startsWith('demo_invalid')) return {ok:false,code:'401',message:'Key 已失效或没有访问权限，请更换密钥后重试。'};
+    if(c.key.startsWith('demo_timeout')) return {ok:false,code:'TIMEOUT',message:'暂时无法连接 API 地址，请检查线路或稍后重试。'};
+    return {ok:true,model:c.model,protocol:c.protocol,latency:186};
+  }
+  class DemoEngine {
+    constructor({onChange=()=>{},delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}) {
+      this.onChange=onChange;this.delay=delay;this.revision=0;this.handled=new Set();this.cache=new Map();
+      this.state={page:'providers',scenario:'json',clipboard:{...scenarios.json},auto:true,status:'idle',phase:0,candidates:[],selected:null,confirmation:false,result:null,providers:existingProviders(),lastAdded:null,fieldIssue:''};
+    }
+    notify(){this.onChange(this.state);}
+    cancelPending(){this.revision++;this.state.confirmation=false;this.state.result=null;this.state.status='idle';this.state.phase=0;this.state.candidates=[];this.state.selected=null;this.state.fieldIssue='';}
+    setPage(page){if(!['providers','custom','agents','usage','settings'].includes(page))return;this.cancelPending();this.state.page=page;this.notify();if(page==='custom'&&this.state.auto)return this.detect();}
+    setClipboard(snapshot,scenario='custom'){this.cancelPending();this.state.clipboard={kind:snapshot.kind||'text',text:String(snapshot.text||'')};this.state.scenario=scenario;this.state.lastAdded=null;this.notify();if(this.state.page==='custom'&&this.state.auto)return this.detect();}
+    setScenario(id){if(scenarios[id])return this.setClipboard({...scenarios[id]},id);}
+    setAuto(enabled){this.state.auto=!!enabled;if(!enabled)this.cancelPending();this.notify();if(enabled&&this.state.page==='custom')return this.detect();}
+    async detect(force=false){
+      if(this.state.page!=='custom')return;
+      const run=++this.revision;this.state.confirmation=false;this.state.result=null;this.state.status='reading';this.state.phase=0;this.state.fieldIssue='';this.notify();
+      await this.delay(this.state.clipboard.kind==='image'?650:300);
+      if(run!==this.revision||this.state.page!=='custom')return;
+      const parsed=parseClipboard(this.state.clipboard);this.state.candidates=parsed.candidates;this.state.selected=parsed.candidates[0]||null;
+      if(parsed.kind==='none'){this.state.status='idle';this.state.selected=null;this.notify();return;}
+      if(parsed.kind==='incomplete'){this.state.status='incomplete';this.state.fieldIssue=parsed.issue;this.notify();return;}
+      if(parsed.candidates.length>1){this.state.status='selecting';this.state.selected=null;this.notify();return;}
+      return this.validate(this.state.selected,force);
+    }
+    selectCandidate(index){const c=this.state.candidates[index];if(c)return this.validate(c);}
+    edit(fields){
+      const prior=this.state.selected||{name:'自定义 API',base:'',key:'',model:'demo-chat'};
+      const c=candidate(fields.name??prior.name,fields.base??prior.base,fields.key??prior.key,fields.model??prior.model);
+      const changed=fingerprint(c)!==fingerprint(prior);
+      if(changed){this.revision++;this.state.confirmation=false;this.state.result=null;this.state.status='edited';this.state.fieldIssue=c.issue;}
+      this.state.selected=c;this.notify();
+    }
+    async validate(c,force=false){
+      if(this.state.page!=='custom'||!c)return;
+      const run=++this.revision;this.state.selected={...c};this.state.confirmation=false;this.state.result=null;this.state.fieldIssue='';
+      if(c.issue){this.state.status='incomplete';this.state.fieldIssue=c.issue;this.notify();return;}
+      if(this.state.providers.some(p=>sameCredentials(p,c))){this.state.status='duplicate';this.notify();return;}
+      const fp=fingerprint(c);
+      if(this.handled.has(fp)&&!force){this.state.status='dismissed';this.notify();return;}
+      const cached=this.cache.get(fp);
+      if(cached&&!force){this.state.result=cached;this.state.status='verified';this.state.phase=3;this.state.confirmation=true;this.notify();return;}
+      this.state.status='validating';this.state.phase=1;this.notify();
+      for(const phase of [2,3]){await this.delay(550);if(run!==this.revision||this.state.page!=='custom')return;this.state.phase=phase;this.notify();}
+      await this.delay(450);if(run!==this.revision||this.state.page!=='custom')return;
+      const result=simulateValidation(c);this.state.result=result;
+      if(result.ok){this.cache.set(fp,result);this.state.status='verified';this.state.confirmation=true;}
+      else this.state.status='failed';
+      this.notify();
+    }
+    dismiss(){if(this.state.selected)this.handled.add(fingerprint(this.state.selected));this.state.confirmation=false;this.state.status='dismissed';this.notify();}
+    add(){
+      if(this.state.page!=='custom'||!this.state.confirmation||this.state.status!=='verified'||!this.state.result?.ok||!this.state.selected)return false;
+      const c={...this.state.selected};if(this.state.providers.some(p=>sameCredentials(p,c)))return false;
+      const p={...c,id:'added-'+this.state.providers.length,models:1,current:false};this.state.providers.push(p);this.handled.add(fingerprint(c));this.revision++;this.state.lastAdded=p;this.state.confirmation=false;this.state.status='saved';this.state.page='providers';this.notify();return true;
+    }
+  }
+  globalThis.MagpieDemoCore={scenarios,existingProviders,normalizeUrl,parseClipboard,fingerprint,sameCredentials,maskedKey,simulateValidation,candidate,DemoEngine};
+})();
+</script>
+<script id="magpie-demo-ui">
+(() => {
+  const root=document.getElementById('magpie-import-demo');
+  const {scenarios,maskedKey,candidate,DemoEngine}=globalThis.MagpieDemoCore;
+  const main=root.querySelector('#mp-main'),overlay=root.querySelector('#mp-overlay');
+  const scenarioSelect=root.querySelector('#mp-scenario'),sourcePanel=root.querySelector('#mp-source-panel'),sourceText=root.querySelector('#mp-source-text');
+  const design={promptStyle:'modal'};
+  const writer='magpie-demo-'+Math.random().toString(36).slice(2);
+  let reveal=false,previousConfirmation=false,returnFocus=null,fieldChange=false;
+  const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const icon=name=>`<span class="mp-icon"><i data-lucide="${name}" aria-hidden="true"></i></span>`;
+  const button=(label,action,primary=false)=>`<button class="mp-button ${primary?'mp-button-primary':''} cursor-interaction" type="button" data-action="${action}">${label}</button>`;
+  const engine=new DemoEngine({onChange:render});
+  function remember(){
+    const state=engine.state;
+    if(globalThis.openai?.setWidgetState)globalThis.openai.setWidgetState({modelContent:{page:state.page,scenario:scenarios[state.scenario]?state.scenario:'custom',status:state.status,addedProviderCount:state.providers.length-2},privateContent:{auto:state.auto,promptStyle:design.promptStyle,writer}}).catch(()=>{});
+  }
+  function readHostState(saved){
+    if(!saved||typeof saved!=='object')return;
+    const p=saved.privateContent||{},m=saved.modelContent||{};
+    if(typeof p.auto==='boolean')engine.state.auto=p.auto;
+    if(['modal','inline'].includes(p.promptStyle))design.promptStyle=p.promptStyle;
+    if(scenarios[m.scenario]){engine.state.scenario=m.scenario;engine.state.clipboard={...scenarios[m.scenario]};}
+    if(['providers','custom','agents','usage','settings'].includes(m.page))engine.state.page=m.page;
+  }
+  readHostState(globalThis.openai?.widgetState);
+  function statusBox(tone,title,description,extra='',name='clipboard-check'){
+    return `<section class="mp-status ${tone}" aria-live="polite">${icon(name)}<div class="mp-status-copy"><h3>${escape(title)}</h3>${description?`<p>${escape(description)}</p>`:''}${extra}</div></section>`;
+  }
+  function statusMarkup(s){
+    if(s.status==='reading')return statusBox('','正在'+(s.clipboard.kind==='image'?'识别剪贴板截图':'读取剪贴板配置'),'正在提取地址和密钥…','','scan-text');
+    if(s.status==='validating'){
+      const names=['地址与鉴权','获取模型','最小调用'];
+      const steps=names.map((n,i)=>`<span class="mp-step ${i+1<s.phase?'done':i+1===s.phase?'active':''}">${icon(i+1<s.phase?'check':'circle')}${n}</span>`).join('');
+      return statusBox('','正在验证 API 可用性',new URL(s.selected.base).hostname+' · '+(s.phase===1?'检查接口地址':s.phase===2?'读取可用模型':'验证 '+s.selected.model),`<div class="mp-steps">${steps}</div>`,'loader-circle').replace('class="mp-icon"','class="mp-icon mp-spin"');
+    }
+    if(s.status==='selecting')return statusBox('','识别到 '+s.candidates.length+' 条 API 配置','选择一条进行验证，通过后再询问添加。',`<div class="mp-candidates">${s.candidates.map((c,i)=>`<button type="button" class="mp-candidate cursor-interaction" data-candidate="${i}">${icon('key-round')}<span>${escape(c.name)}<br><small>${escape(maskedKey(c.key))}</small></span>${icon('chevron-right')}</button>`).join('')}</div>`,'scan-text');
+    if(s.status==='incomplete')return statusBox('warning','配置还不完整',s.fieldIssue,'','circle-alert');
+    if(s.status==='failed')return statusBox('error',s.result.code==='401'?'验证失败 · 密钥不可用':'验证失败 · 连接超时',s.result.message,`<div style="margin-top:10px">${button('重新验证','retry')}</div>`,'circle-x');
+    if(s.status==='duplicate')return statusBox('','这条配置已经存在','已跳过添加，原有供应商配置保持不变。','','copy-check');
+    if(s.status==='dismissed')return statusBox('','本次未添加','相同内容不会再次自动提示，可编辑配置或手动重新检测。','','clipboard');
+    if(s.status==='edited')return statusBox('','配置已修改，需要重新验证',s.fieldIssue||'地址、密钥或模型已变化，验证通过后才能添加。','','pencil-line');
+    if(s.status==='verified')return statusBox('success','API 验证通过',s.result.model+' · 已完成一次最小调用 · '+s.result.latency+' ms','','circle-check');
+    return '';
+  }
+  function confirmationMarkup(s,modal){
+    const c=s.selected;
+    return `<section class="mp-confirm" ${modal?'role="dialog" aria-modal="true"':'role="region"'} aria-labelledby="mp-confirm-title" data-testid="confirmation">
+      <div class="mp-confirm-icon">${icon('check')}</div>
+      <h2 id="mp-confirm-title">发现可用的 API，是否添加？</h2>
+      <p class="mp-confirm-subtitle">已验证接口可用，确认后添加到供应商列表。</p>
+      <dl class="mp-details">
+        <div class="mp-detail"><dt>供应商名称</dt><dd>${escape(c.name)}</dd></div>
+        <div class="mp-detail"><dt>API 地址</dt><dd>${escape(c.base)}</dd></div>
+        <div class="mp-detail"><dt>API Key</dt><dd>${escape(maskedKey(c.key))}</dd></div>
+        <div class="mp-detail"><dt>接口协议</dt><dd>Chat Completions</dd></div>
+        <div class="mp-detail"><dt>已验证模型</dt><dd>${escape(s.result.model)} <span class="mp-pill mp-pill-green">可用</span></dd></div>
+      </dl>
+      <p class="mp-small mp-muted">仅新增供应商，保留当前使用的模型和配置。</p>
+      <div class="mp-confirm-actions">${button('暂不添加','dismiss')}${button('确认添加','add',true)}</div>
+    </section>`;
+  }
+  function customMarkup(s){
+    const c=s.selected||{name:'',base:'',key:'',model:'demo-chat'};
+    const busy=['reading','validating'].includes(s.status);
+    return `<div class="mp-breadcrumb"><button type="button" class="cursor-interaction" data-action="providers">供应商</button><span>/</span><span>自定义供应商</span></div>
+      <div class="mp-heading"><div><h1>自定义供应商</h1><p class="mp-muted mp-small">添加你自己的 API 地址和密钥</p></div><button type="button" class="mp-button mp-ghost cursor-interaction" data-action="reread" ${busy?'disabled':''}>${icon('clipboard')}重新检测</button></div>
+      <div id="mp-detection" aria-live="polite">${statusMarkup(s)}</div>
+      ${s.confirmation&&design.promptStyle==='inline'?`<div class="mp-inline-area">${confirmationMarkup(s,false)}</div>`:''}
+      <div class="mp-form-panel"><div class="mp-panel-heading mp-row mp-between"><h2>连接信息</h2><span class="mp-pill">API Key</span></div>
+      <div class="mp-form-grid">
+        <label class="mp-field"><span>供应商名称</span><input id="mp-name" value="${escape(c.name)}" placeholder="例如：我的 API" autocomplete="off" ${busy?'disabled':''}></label>
+        <label class="mp-field"><span>接口协议</span><input value="Chat Completions" readonly aria-label="接口协议"></label>
+        <label class="mp-field full"><span>API 基础地址</span><input id="mp-base" value="${escape(c.base)}" placeholder="https://api.example/v1" spellcheck="false" autocomplete="off" ${busy?'disabled':''}></label>
+        <label class="mp-field full"><span>API Key</span><span class="mp-key-field"><input id="mp-key" type="${reveal?'text':'password'}" value="${escape(c.key)}" placeholder="粘贴你的 API Key" spellcheck="false" autocomplete="off" ${busy?'disabled':''}><button type="button" class="mp-button cursor-interaction" data-action="reveal" aria-label="${reveal?'隐藏密钥':'显示密钥'}">${icon(reveal?'eye-off':'eye')}</button></span></label>
+        <label class="mp-field full"><span>验证模型</span><select id="mp-model" ${busy?'disabled':''}>${[...new Set([c.model,'demo-chat','demo-reasoner'])].map(m=>`<option ${m===c.model?'selected':''} value="${escape(m)}">${escape(m)}</option>`).join('')}</select><small>仅所选模型通过验证后，才会提示添加。</small></label>
+      </div><hr class="mp-form-divider"><div class="mp-form-actions"><label class="mp-check"><input id="mp-auto" type="checkbox" ${s.auto?'checked':''}>进入此页面时识别剪贴板</label><button class="mp-button cursor-interaction" type="button" data-action="validate" ${busy?'disabled':''}>${icon('plug-zap')}验证配置</button></div></div>
+      <div class="mp-footnote">${icon('shield-check')}<span>密钥仅用于所填 API 地址的连接验证。</span></div>`;
+  }
+  function providersMarkup(s){
+    return `<div class="mp-heading"><div><h1>供应商<span class="mp-count">${s.providers.length}</span></h1><p class="mp-muted mp-small">在一处管理你的模型来源</p></div>${button(icon('plus')+'自定义供应商','custom',true)}</div>
+      ${s.lastAdded?statusBox('success','已添加 '+s.lastAdded.name,'现在可在供应商列表中找到它，当前使用的供应商保持不变。','','circle-check'):''}
+      <div class="mp-row mp-between" style="margin-bottom:11px"><h2>已连接</h2><span class="mp-small mp-muted">${s.providers.length} 个供应商</span></div>
+      <div class="mp-providers">${s.providers.map(p=>`<article class="mp-provider ${p.id===s.lastAdded?.id?'mp-new':''}" data-provider="${escape(p.id)}"><div class="mp-provider-logo">${p.id==='deepseek'?'D':p.id==='team'?icon('network'):icon('plug')}</div><div class="mp-provider-text"><h3>${escape(p.name)}</h3><p>${escape(new URL(p.base).hostname)} · ${p.models} 个模型</p></div><span class="mp-pill ${p.current||p.id===s.lastAdded?.id?'mp-pill-green':''}">${p.current?'当前使用':p.id===s.lastAdded?.id?'刚刚添加':'已连接'}</span></article>`).join('')}</div>
+      <p class="mp-section-label">添加模型来源</p><button type="button" class="mp-add cursor-interaction" data-action="custom"><span class="mp-add-icon">${icon('plus')}</span><span class="mp-add-copy"><strong style="font-weight:500">自定义供应商</strong><span>使用 API 地址和密钥接入</span></span>${icon('chevron-right')}</button>
+      <div class="mp-footnote">${icon('lock-keyhole')}<span>配置保存在本机，所有智能体可以共用。</span></div>`;
+  }
+  function otherMarkup(s){
+    if(s.page==='settings')return `<div class="mp-heading"><div><h1>设置</h1><p class="mp-small mp-muted">按你的习惯调整 Magpie</p></div></div><h2>剪贴板导入</h2><label class="mp-setting-row"><span><strong style="font-weight:500">自动识别 API 配置</strong><p class="mp-small mp-muted" style="margin-top:4px">仅进入自定义供应商页面时检测</p></span><input type="checkbox" id="mp-settings-auto" aria-label="自动识别 API 配置" ${s.auto?'checked':''}></label><p class="mp-small mp-muted" style="margin-top:17px">关闭后，仍可在自定义供应商页面手动重新检测。</p>`;
+    if(s.page==='agents')return `<div class="mp-heading"><div><h1>智能体</h1><p class="mp-small mp-muted">为每个智能体选择模型来源</p></div></div><div class="mp-agent"><span>Claude Code</span><span class="mp-muted">团队网关 / demo-chat</span></div><div class="mp-agent"><span>Codex</span><span class="mp-muted">DeepSeek / demo-chat</span></div>`;
+    return `<div class="mp-heading"><div><h1>用量</h1><p class="mp-small mp-muted">查看模型请求记录</p></div></div><div class="mp-empty">${icon('chart-no-axes-combined')}<h3>暂无请求记录</h3><p class="mp-small">开始使用模型后，请求会显示在这里。</p></div>`;
+  }
+  function render(){
+    const s=engine.state;
+    if(fieldChange&&s.page==='custom'){
+      const detection=main.querySelector('#mp-detection');if(detection)detection.innerHTML=statusMarkup(s);
+      if(!s.confirmation){overlay.hidden=true;overlay.innerHTML='';main.inert=false;root.querySelector('.mp-sidebar').inert=false;main.querySelector('.mp-inline-area')?.remove();previousConfirmation=false;}
+      else if(design.promptStyle==='inline'){const inline=main.querySelector('.mp-inline-area');if(inline)inline.innerHTML=confirmationMarkup(s,false);}
+      if(globalThis.lucide)globalThis.lucide.createIcons({attrs:{width:16,height:16}});
+      return;
+    }
+    root.querySelectorAll('[data-page]').forEach(b=>{if(b.dataset.page===(s.page==='custom'?'providers':s.page))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+    main.innerHTML=s.page==='custom'?customMarkup(s):s.page==='providers'?providersMarkup(s):otherMarkup(s);
+    const modal=s.page==='custom'&&s.confirmation&&design.promptStyle==='modal';
+    overlay.hidden=!modal;overlay.innerHTML=modal?confirmationMarkup(s,true):'';
+    if(modal){main.inert=true;root.querySelector('.mp-sidebar').inert=true;if(!previousConfirmation){returnFocus=document.activeElement;queueMicrotask(()=>overlay.querySelector('[data-action="add"]')?.focus({preventScroll:true}));}}
+    else {main.inert=false;root.querySelector('.mp-sidebar').inert=false;if(previousConfirmation&&returnFocus?.isConnected)returnFocus.focus({preventScroll:true});}
+    previousConfirmation=modal;
+    if(scenarios[s.scenario])scenarioSelect.value=s.scenario;
+    if(globalThis.lucide)globalThis.lucide.createIcons({attrs:{width:16,height:16}});
+  }
+  function populateSource(){
+    const s=engine.state,shot=root.querySelector('#mp-source-shot'),isImage=s.clipboard.kind==='image';
+    root.querySelector('#mp-source-caption').textContent=scenarios[s.scenario]?.label||'自定义示例文本；仅做模拟验证，不会发出请求';
+    sourceText.value=s.clipboard.text;sourceText.hidden=isImage;root.querySelector('#mp-text-label').hidden=isImage;root.querySelector('#mp-apply-text').hidden=isImage;shot.hidden=!isImage;
+    if(isImage)shot.innerHTML='<p>baseurl: https://relay.example/v1</p>'+s.clipboard.text.split('\n').slice(1).map((line,i)=>i%2===0?`<p style="margin-top:13px;margin-bottom:3px">${escape(line)}</p>`:`<code>${escape(line)}</code>`).join('');
+  }
+  function formFields(){return {name:main.querySelector('#mp-name')?.value||'',base:main.querySelector('#mp-base')?.value||'',key:main.querySelector('#mp-key')?.value||'',model:main.querySelector('#mp-model')?.value||'demo-chat'};}
+  root.addEventListener('click',event=>{
+    const nav=event.target.closest('[data-page]');if(nav){engine.setPage(nav.dataset.page);remember();return;}
+    const choice=event.target.closest('[data-candidate]');if(choice){engine.selectCandidate(Number(choice.dataset.candidate));remember();return;}
+    const action=event.target.closest('[data-action]')?.dataset.action;
+    if(!action)return;
+    if(action==='custom'||action==='providers')engine.setPage(action);
+    else if(action==='reread')engine.detect(true);
+    else if(action==='retry'&&engine.state.selected)engine.validate(engine.state.selected,true);
+    else if(action==='validate'){const f=formFields();engine.edit(f);engine.validate(engine.state.selected,true);}
+    else if(action==='dismiss')engine.dismiss();
+    else if(action==='add')engine.add();
+    else if(action==='reveal'){reveal=!reveal;const key=main.querySelector('#mp-key');if(key)key.type=reveal?'text':'password';const b=event.target.closest('button');b.setAttribute('aria-label',reveal?'隐藏密钥':'显示密钥');b.innerHTML=icon(reveal?'eye-off':'eye');if(globalThis.lucide)globalThis.lucide.createIcons({attrs:{width:16,height:16}});}
+    remember();
+  });
+  root.addEventListener('change',event=>{
+    if(['mp-auto','mp-settings-auto'].includes(event.target.id)){engine.setAuto(event.target.checked);remember();}
+  });
+  root.addEventListener('input',event=>{
+    if(['mp-name','mp-base','mp-key','mp-model'].includes(event.target.id)){fieldChange=true;engine.edit(formFields());fieldChange=false;remember();}
+  });
+  root.addEventListener('keydown',event=>{
+    if(!engine.state.confirmation||design.promptStyle!=='modal')return;
+    if(event.key==='Escape'){event.preventDefault();engine.dismiss();remember();}
+    if(event.key==='Tab'){const buttons=[...overlay.querySelectorAll('button')];const first=buttons[0],last=buttons[buttons.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
+  });
+  scenarioSelect.addEventListener('change',()=>{engine.setScenario(scenarioSelect.value);populateSource();remember();});
+  root.querySelector('#mp-view-source').addEventListener('click',event=>{sourcePanel.hidden=!sourcePanel.hidden;event.currentTarget.setAttribute('aria-expanded',String(!sourcePanel.hidden));event.currentTarget.textContent=sourcePanel.hidden?'查看内容':'收起内容';populateSource();});
+  root.querySelector('#mp-apply-text').addEventListener('click',()=>{engine.setClipboard({kind:'text',text:sourceText.value});remember();});
+  globalThis.addEventListener('openai:set_globals',event=>{
+    const saved=event.detail?.globals?.widgetState;if(!saved||saved.privateContent?.writer===writer)return;
+    const m=saved.modelContent||{},p=saved.privateContent||{},s=engine.state;
+    if((!m.page||m.page===s.page)&&(!scenarios[m.scenario]||m.scenario===s.scenario)&&(typeof p.auto!=='boolean'||p.auto===s.auto)&&(!p.promptStyle||p.promptStyle===design.promptStyle))return;
+    engine.cancelPending();readHostState(saved);render();populateSource();if(engine.state.page==='custom'&&engine.state.auto)engine.detect();
+  });
+  render();populateSource();
+  if(engine.state.page==='custom'&&engine.state.auto)engine.detect();
+  if(globalThis.Tweak){const tweak=new Tweak({container:root.querySelector('#mp-window'),onChange:()=>{render();remember();}});tweak.addSelect(design,'promptStyle',{label:'添加确认方式',options:[{label:'居中弹窗',value:'modal'},{label:'页内确认',value:'inline'}]});}
+})();
+</script>
