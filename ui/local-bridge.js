@@ -2,34 +2,37 @@
   'use strict';
   const base = new URL('.', document.currentScript.src);
   const listeners = new Set();
-  let timer, last = '', ended = false, selectedImage, processing = false, polling = false;
+  let timer, last = '', ended = false, selectedImage, processing = false, polling;
   const $ = id => document.getElementById(id);
   async function call(path, body, keepalive = false) {
     const response = await fetch(new URL(path, base), {
       method: body === undefined ? 'GET' : 'POST', credentials: 'omit', cache: 'no-store', keepalive,
       headers: { 'X-API-Import': '1', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: AbortSignal.timeout(path === 'command' ? (body?.type === 'detect' ? 55_000 : 15_000) : 5_000),
     });
     if (!response.ok) throw Error('本次导入未完成，请返回 Magpie 重试。');
     return response.json();
   }
-  async function poll() {
-    if (polling || ended) return;
-    polling = true;
-    try {
+  async function poll(fresh = false) {
+    if (ended) return;
+    if (polling) { await polling; if (!fresh || ended) return; }
+    const pending = (async () => {
       const state = await call('state');
       const text = JSON.stringify(state);
       if (last !== text) { last = text; for (const listener of listeners) listener(state); }
       if (state.status === 'saved') { ended = true; clearInterval(timer); $('parse-input').disabled = true; }
-    } catch { if (!ended) $('input-notice').textContent = '导入连接已关闭，请返回 Magpie 重新登录。'; }
-    finally { polling = false; }
+    })();
+    polling = pending;
+    try { await pending; } finally { if (polling === pending) polling = undefined; }
   }
+  function backgroundPoll() { void poll().catch(() => { if (!ended) $('input-notice').textContent = '导入连接已关闭，请返回 Magpie 重新登录。'; }); }
   globalThis.apiImport = {
     version: 1,
-    async command(command) { await call('command', command); await poll(); },
+    async command(command) { await call('command', command); await poll(true); },
     async revealKey() { return (await call('key', {})).key; },
     async revealEncodedKey() { return (await call('encoded-key', {})).encoded; },
-    subscribe(listener) { listeners.add(listener); if (last) listener(JSON.parse(last)); void poll(); timer ??= setInterval(poll, 300); return () => listeners.delete(listener); },
+    subscribe(listener) { listeners.add(listener); if (last) listener(JSON.parse(last)); backgroundPoll(); timer ??= setInterval(backgroundPoll, 300); return () => listeners.delete(listener); },
   };
   function selectImage(file) {
     if (processing || ended) return;

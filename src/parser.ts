@@ -73,6 +73,9 @@ function candidate(record: Record<string, unknown>, inherited: Record<string, un
 export function parseText(text: string, image = false): Recognition {
   if (text.length > 1_048_576) throw new ImportError("SIZE", "剪贴板文本超过 1 MB，请缩小内容后重试。");
   text = text.replace(/^\uFEFF/, "").trim();
+  // OCR may insert spaces between scheme punctuation. Only repair that fixed
+  // prefix on URL-labelled image lines; never join arbitrary URL/key tokens.
+  if (image) text = text.split(/\r?\n/).map(line => /^\s*(?:url|baseurl|https?\s*:)/i.test(line) ? line.replace(/\b(https?)\s*:\s*\/\s*\/\s*/gi, "$1://") : line).join("\n");
   if (!text) return { candidates: [], issues: [] };
   const records: Array<{ record: Record<string, unknown>; inherited?: Record<string, unknown>; review?: boolean; urls?: string[] }> = [];
   const issues: string[] = [];

@@ -9,6 +9,9 @@ const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req): Pro
   if (url.pathname.startsWith("/unauthorized")) return Response.json({ error: "must not expose key" }, { status: 401 });
   if (url.pathname.startsWith("/redirect")) return Response.redirect(`${server.url}captured`, 302);
   if (url.pathname.startsWith("/slow")) { await Bun.sleep(100); return Response.json({}); }
+  if (url.pathname.startsWith("/stalled-body")) return new Response(new ReadableStream({
+    start(controller) { controller.enqueue(new TextEncoder().encode('{"choices":')); },
+  }), { headers: { "Content-Type": "application/json" } });
   if (url.pathname.startsWith("/fake")) return Response.json({ data: [{ id: "one" }] });
   if (url.pathname.startsWith("/huge")) return new Response(' '.repeat(262_145));
   if (url.pathname.startsWith("/missing")) return new Response("Not found", { status: 404 });
@@ -45,6 +48,11 @@ describe("real HTTP verification", () => {
     await expect(new HttpValidator(fetch, 20).validate(make("slow/"), new AbortController().signal)).rejects.toMatchObject({ code: "TIMEOUT" });
     const abort = new AbortController(); const pending = new HttpValidator().validate(make("slow/"), abort.signal); abort.abort();
     await expect(pending).rejects.toBeDefined();
+  });
+  test("the same deadline also bounds a response body that never finishes", async () => {
+    const before=calls.length;
+    await expect(new HttpValidator(fetch,50).validate(make("stalled-body/"),new AbortController().signal)).rejects.toMatchObject({code:"TIMEOUT"});
+    expect(calls.length-before).toBe(1);
   });
   test("rejects an oversized response and does not request unsupported protocols", async () => {
     await expect(new HttpValidator().validate(make("huge/"), new AbortController().signal)).rejects.toMatchObject({ code: "RESPONSE" });

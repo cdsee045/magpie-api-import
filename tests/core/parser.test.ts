@@ -25,6 +25,13 @@ describe("recognition", () => {
     expect(candidates).toHaveLength(3); expect(candidates.every(c => !c.key && c.encodedKey?.startsWith("c2st%%%"))).toBe(true);
     expect(issues).toContain("Base64 Key 无效，请手动补全。");
   });
+  test("OCR spacing in labelled URL schemes preserves both address choices without joining a key", () => {
+    const { candidates } = parseText(sharedText().replace(/https:\/\//g, "https: / / "), true);
+    expect(candidates).toHaveLength(3);
+    expect(candidates.every(c => JSON.stringify(c.urlOptions) === JSON.stringify(sharedUrls))).toBe(true);
+    const literal = parseText(`url: https: //api.example.test\nkey: ${key}`);
+    expect(literal.candidates[0]?.url).not.toBe("https://api.example.test");
+  });
   test("unpadded Base64 does not absorb the following English heading", () => {
     const encoded = Buffer.from("sk-fixture_official_key_123456789").toString("base64");
     expect(encoded).not.toEndWith("=");

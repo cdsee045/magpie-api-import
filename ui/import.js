@@ -1,15 +1,41 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let api, state, revealed = false, started = false, queue = Promise.resolve(), encodedVersion = 0;
-  const busy = () => state && ['reading','validating','saving'].includes(state.status);
+  let api, state, revealed = false, started = false, queue = Promise.resolve(), encodedVersion = 0, operation = '', operationError = '';
+  const busy = () => !!operation || (!operationError && state && ['reading','validating','saving'].includes(state.status));
+  const operationMessage = () => operation === 'verify' ? '正在验证当前模型，最多等待 12 秒，请勿重复点击。' : operation === 'models' ? '正在获取模型列表，最多等待 12 秒…' : '正在处理，请稍候…';
+  const currentMessage = () => operationError || (operation ? operationMessage() : state?.message || '');
   function clearEncoded() { encodedVersion++; if ($('encoded-key')) { $('encoded-key').value = ''; $('encoded-editor').hidden = true; } }
-  function notice(message) { $('notice').hidden = !message; $('notice').textContent = message; }
+  function notice(message) {
+    $('notice').hidden = !message; $('notice').textContent = message;
+    const feedback = $('validation-status');
+    if (feedback) { feedback.hidden = !message; feedback.textContent = message; feedback.dataset.status = operationError ? 'failed' : state?.status || ''; }
+  }
+  function controls() {
+    for (const el of $('editor').querySelectorAll('input,select,textarea,button')) el.disabled = busy();
+    for (const el of $('choices').querySelectorAll('button')) el.disabled = busy();
+    $('detect').disabled = busy();
+    $('editor').setAttribute('aria-busy', String(!!busy()));
+    const validating = operation === 'verify' || state?.status === 'validating';
+    $('validate').textContent = busy() && validating ? '验证中…' : '验证 API';
+    $('load-models').textContent = busy() && operation === 'models' ? '获取中…' : '获取模型';
+  }
   async function send(command) {
     if (!api) return;
+    const action = ['verify','models','decode','select','detect'].includes(command.type);
+    if (action && busy()) return;
+    if (action) {
+      operation = command.type; operationError = ''; controls();
+      notice(currentMessage());
+    }
     const pending = queue.then(() => api.command(command));
     queue = pending.catch(() => {});
-    try { await pending; } catch { notice('操作未完成，请在当前页面重试。'); }
+    try { await pending; }
+    catch { operationError = '导入连接未响应或已关闭，请返回 Magpie 重新登录。'; }
+    finally {
+      if (action) operation = '';
+      controls(); notice(currentMessage());
+    }
   }
   function render(next) {
     state = next;
@@ -17,7 +43,8 @@
     $('detect').disabled = busy();
     $('auto').disabled = next.status === 'saving';
     $('notice').dataset.status = next.status;
-    notice(next.message);
+    operationError = '';
+    notice(currentMessage());
     const c = next.candidates[next.selected];
     $('editor').hidden = !c || !next.active || ['saved','dismissed'].includes(next.status);
     if (c) {
@@ -43,7 +70,7 @@
       }
     } else { $('key').value = ''; $('key').type = 'password'; revealed = false; $('reveal').textContent = '显示'; clearEncoded(); }
     $('validation-label').textContent = next.status === 'verified' ? '当前模型已验证' : '尚未验证';
-    for (const el of $('editor').querySelectorAll('input,select,textarea,button')) el.disabled = busy();
+    controls();
     $('choices').hidden = next.candidates.length < 2 || !next.active;
     $('choices').replaceChildren(...next.candidates.map((candidate, index) => {
       const button = document.createElement('button'); button.type = 'button'; button.disabled = busy();

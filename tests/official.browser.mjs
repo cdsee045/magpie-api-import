@@ -6,7 +6,7 @@ import { _internal } from '../dist/plugin.mjs';
 import { keys as sharedKeys } from './fixtures/shared-api.mjs';
 
 const fixture = { name: '我的测试 API', key: 'fixture_browser_key_123456789', model: 'fixture-model' };
-let calls = 0, delay = 0, paths = [], authorizations = [];
+let calls = 0, delay = 0, failureStatus = 0, stallBody = false, paths = [], authorizations = [];
 const api = createServer(async (req, res) => {
   let body = ''; for await (const chunk of req) body += chunk;
   paths.push(req.url);
@@ -15,6 +15,8 @@ const api = createServer(async (req, res) => {
   if (req.url.endsWith('/models')) { res.statusCode = 404; res.end('Not found'); return; }
   calls++; if (delay) await new Promise(resolve => setTimeout(resolve, delay));
   res.setHeader('Content-Type', 'application/json');
+  if (failureStatus) { res.statusCode = failureStatus; res.end('{}'); return; }
+  if (stallBody) { res.write('{"choices":'); const timer = setTimeout(() => res.end('[]}'), 13_000); res.on('close', () => clearTimeout(timer)); return; }
   if (req.headers.authorization?.includes('invalid')) { res.statusCode = 401; res.end(JSON.stringify({ error: { message: fixture.key } })); return; }
   assert.equal(JSON.parse(body).model, fixture.model);
   res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'OK' } }] }));
@@ -33,10 +35,65 @@ async function fresh(width = 1100, colorScheme = 'light') {
 }
 async function paste(page, data) { await page.locator('#input-text').fill(typeof data === 'string' ? data : JSON.stringify(data)); await page.locator('#parse-input').click(); }
 try {
+  // Exercise the viewport where users actually press Validate, including
+  // terminal failures, missing fields, stalled responses and a safe retry.
+  for (const status of [401, 404, 429, 500]) {
+    const { page, context } = await fresh(); await page.setViewportSize({width:1100,height:650});
+    await paste(page, {...fixture, model:''}); await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await page.locator('#model-picker').selectOption(fixture.model); failureStatus=status;
+    await page.locator('#validate').click();
+    await expect(page.locator('#validation-status')).toContainText(status === 401 ? 'Key 无效' : status === 404 ? '接口路径或模型不存在' : status === 429 ? '限流或额度不足' : 'HTTP 500');
+    await expect(page.locator('#validation-status')).toBeInViewport();
+    await expect(page.locator('#validate')).toBeEnabled(); await expect(page.locator('#validate')).toHaveText('验证 API');
+    assert.equal(await page.locator('#confirmation').isVisible(),false); checks+=3;
+    if(status===404) await page.screenshot({path:'artifacts/official-ui/validation-error.png'});
+    failureStatus=0; await context.close();
+  }
+  {
+    const { page, context } = await fresh(); await page.setViewportSize({width:375,height:650});
+    await paste(page,{...fixture,model:''}); await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    const before=calls;
+    await page.locator('#validate').click(); await expect(page.locator('#validation-status')).toContainText('请选择或填写要验证的模型');
+    await expect(page.locator('#validation-status')).toBeInViewport(); assert.equal(calls,before); checks+=2;
+    await page.locator('#url').fill(''); await page.locator('#validate').click();
+    await expect(page.locator('#validation-status')).toContainText('请填写完整的 API 地址'); assert.equal(calls,before); checks++;
+    await context.close();
+  }
+  {
+    const { page, context } = await fresh();
+    await paste(page,{...fixture,model:''}); await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await page.locator('#model-picker').selectOption(fixture.model); const before=calls; delay=900;
+    await page.locator('#validate').click(); await expect(page.locator('#validate')).toHaveText('验证中…');
+    await expect(page.locator('#validation-status')).toContainText('最多等待 12 秒');
+    await expect(page.locator('#validate')).toBeDisabled();
+    await page.evaluate(()=>{document.querySelector('#validate').click();document.querySelector('#validate').click();});
+    await page.locator('#confirmation').waitFor({state:'visible'}); assert.equal(calls,before+1); checks+=2;
+    delay=0; await context.close();
+  }
+  {
+    const { page, context } = await fresh(); await page.setViewportSize({width:1100,height:650});
+    await paste(page,{...fixture,model:''}); await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await page.locator('#model-picker').selectOption(fixture.model); const before=calls; stallBody=true;
+    const started=Date.now(); await page.locator('#validate').click();
+    await expect(page.locator('#validation-status')).toContainText('连接超时',{timeout:16000});
+    assert.ok(Date.now()-started<16000); assert.equal(calls,before+1);
+    await expect(page.locator('#validation-status')).toBeInViewport(); await expect(page.locator('#validate')).toBeEnabled(); checks+=3;
+    stallBody=false; await page.locator('#validate').click(); await page.locator('#confirmation').waitFor({state:'visible'});
+    assert.equal(calls,before+2); checks++; await context.close();
+  }
+  {
+    const { page, context } = await fresh();
+    await paste(page,{...fixture,model:''}); await expect(page.locator('#notice')).toContainText('已获取 1 个模型');
+    await page.locator('#model-picker').selectOption(fixture.model);
+    await page.route('**/command',route=>route.request().postDataJSON().type==='verify'?route.abort():route.continue());
+    await page.locator('#validate').click(); await expect(page.locator('#validation-status')).toContainText('导入连接未响应或已关闭');
+    await expect(page.locator('#validate')).toBeEnabled(); checks++; await context.close();
+  }
   {
     const { flow, page, context } = await fresh();
-    assert.equal(calls, 0); checks++;
+    const before=calls;
     await paste(page, fixture); await page.locator('#confirmation').waitFor({ state: 'visible' });
+    assert.equal(calls,before+1); checks++;
     assert.ok(!(await page.locator('#summary').innerText()).includes(fixture.key)); checks++;
     await expect(page.locator('#input-text')).toHaveValue('');
     await page.locator('#confirm').click(); await expect(page.locator('#notice')).toContainText('提交给 Magpie');
@@ -165,6 +222,9 @@ try {
     await page.locator('#image-file').setInputFiles('tests/fixtures/shared-api-screenshot.png'); await page.locator('#parse-input').click();
     await expect(page.locator('#choices button')).toHaveCount(3,{timeout:60000});
     assert.equal(paths.length,pathCount); assert.equal(calls,before); checks++;
+    await page.locator('#choices button').nth(0).click();
+    await expect(page.locator('#choices button').nth(1)).toBeEnabled();
+    await page.locator('#validate').click(); await expect(page.locator('#choices button').nth(1)).toBeEnabled(); checks++;
     await page.locator('#choices button').nth(1).click(); await expect(page.locator('#url-picker')).toBeVisible();
     await expect(page.locator('#url')).toHaveValue('');
     await page.locator('#url-picker').selectOption('https://cdn.example.test');
