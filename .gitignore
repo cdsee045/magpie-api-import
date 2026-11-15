@@ -1,0 +1,11 @@
+node_modules/
+dist/
+artifacts/
+.sandbox/
+.env
+.env.*
+!.env.example
+*.log
+*.tgz
+coverage/
+integration/windows/clipboard.exe

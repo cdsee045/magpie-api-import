@@ -1,0 +1,38 @@
+name: Validate plugin modules
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  typescript:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/bun/install.js
+      - run: node node_modules/esbuild/install.js
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
+      - run: npm run pack:check
+  windows-bridge:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - working-directory: integration/windows
+        run: go test -v ./...
+      - working-directory: integration/windows
+        run: go vet ./...
+      - working-directory: integration/windows
+        run: go build ./...

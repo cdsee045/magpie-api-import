@@ -1,0 +1,29 @@
+{
+  "name": "magpie-api-import",
+  "version": "0.1.0-dev.1",
+  "private": true,
+  "description": "Local API configuration recognition and verified import for Magpie",
+  "type": "module",
+  "main": "./index.ts",
+  "files": ["index.ts", "src", "ui", "vendor", "README.md", "docs", "integration"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests/core",
+    "test:demo": "node --test tests/demo.test.cjs",
+    "test:browser": "node tests/ui.browser.mjs",
+    "check": "npm run typecheck && npm test && npm run test:demo && npm run build && npm run test:browser",
+    "dev": "npm run build && node scripts/dev.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": { "bun": ">=1.3.0" },
+  "keywords": ["magpie", "opencode", "opencode-plugin", "api-import"],
+  "repository": { "type": "git", "url": "git+https://github.com/cdsee045/magpie-api-import.git" },
+  "magpie": {
+    "name": "API 自动配置",
+    "summary": { "en": "Recognize and verify API configuration locally. Host integration required.", "zh": "本地识别并验证 API 配置。需要宿主接入支持。" },
+    "panels": [{ "slot": "settings", "file": "ui/compatibility.html", "title": "API 自动配置兼容性" }]
+  },
+  "dependencies": { "tesseract.js": "^6.0.1", "@tesseract.js-data/eng": "^1.0.0", "@tesseract.js-data/chi_sim": "^1.0.0" },
+  "devDependencies": { "@types/bun": "^1.3.0", "typescript": "^5.9.3", "esbuild": "^0.27.0", "bun": "^1.3.0", "@playwright/test": "^1.56.1" }
+}

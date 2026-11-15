@@ -24,4 +24,4 @@ node --test tests/demo.test.cjs
 
 `tests/demo.browser.cjs` 用 Playwright 验证界面流程和宽窄屏布局，需要设置 `DEMO_NODE_MODULES`、`DEMO_BROWSER_PATH`、`DEMO_PREVIEW_PATH`、`DEMO_ARTIFACT_DIR`，分别指向 Playwright 包目录、浏览器程序、预览包装页和截图输出目录。
 
-本次按用户要求不创建 Git commit。
+此目录保留早期交互 Demo。真实解析、HTTP 验证、本地 OCR 和宿主接入代码见仓库根目录 README；Demo 仍使用模拟数据。
